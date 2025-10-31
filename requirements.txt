@@ -1,0 +1,9 @@
+# No external dependencies required
+# All modules used are in Python standard library:
+# - re, json, os, pathlib, datetime, typing
+
+# Python version requirement: >= 3.8
+# (for typing support and pathlib features)
+
+# Future dependencies can be added below:
+
