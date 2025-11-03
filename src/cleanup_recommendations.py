@@ -31,28 +31,49 @@ def cleanup_recommendations(input_file: Path, output_file: Path = None):
     
     for rec in recommendations:
         name = rec.get('name', '')
+        original_name = name
         
-        # Skip if name is invalid (URL-like, etc.)
+        # Clean name (remove newlines, normalize whitespace)
+        if name:
+            name = name.replace('\n', ' ').strip()
+            name = re.sub(r'\s+', ' ', name)  # Normalize multiple spaces
+        
+        # Skip if name is invalid (URL-like, personal contacts, etc.)
+        # But only if it's truly invalid - don't remove entries with just formatting issues
         if name and not is_valid_name(name):
-            # Try to set name to 'Unknown' if we have at least a phone or service
-            if rec.get('phone') or rec.get('service'):
-                rec['name'] = 'Unknown'
-                fixed.append({
-                    'old_name': name,
-                    'new_name': 'Unknown',
-                    'phone': rec.get('phone'),
-                    'service': rec.get('service')
-                })
+            # Only remove if it's a personal contact or clearly invalid
+            # Keep entries with phone/service even if name is invalid
+            if name == 'Unknown' or (rec.get('phone') or rec.get('service')):
+                # Keep the entry but mark name as Unknown if it's truly invalid
+                if name != 'Unknown':
+                    rec['name'] = 'Unknown'
+                    fixed.append({
+                        'old_name': original_name,
+                        'new_name': 'Unknown',
+                        'phone': rec.get('phone'),
+                        'service': rec.get('service')
+                    })
                 cleaned.append(rec)
             else:
                 # Remove entries with no valid name, phone, or service
                 removed.append({
-                    'name': name,
+                    'name': original_name,
                     'phone': rec.get('phone'),
                     'service': rec.get('service')
                 })
-        else:
-            cleaned.append(rec)
+            continue
+        
+        # If name was cleaned, update it
+        if name != original_name and name:
+            rec['name'] = name
+            fixed.append({
+                'old_name': original_name,
+                'new_name': name,
+                'phone': rec.get('phone'),
+                'service': rec.get('service')
+            })
+        
+        cleaned.append(rec)
     
     print(f"\nCleaned up:")
     print(f"  - Fixed: {len(fixed)} entries (set name to 'Unknown')")

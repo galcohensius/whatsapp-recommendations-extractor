@@ -16,6 +16,7 @@ from typing import Dict, List, Optional, Tuple
 # Add src directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 from utils import normalize_phone, extract_phone_numbers
+from analyze_recommendations import analyze_recommendations
 
 
 
@@ -233,8 +234,16 @@ def parse_all_chat_files(text_dir: Path) -> List[Dict]:
 
 
 def is_valid_name(name: str) -> bool:
-    """Validate that a name candidate is not a URL, URL parameter, or other non-name string."""
+    """Validate that a name candidate is not a URL, URL parameter, personal contact, or other non-name string."""
     if not name or len(name) < 2:
+        return False
+    
+    # Clean name (remove newlines, normalize whitespace)
+    name = name.replace('\n', ' ').strip()
+    
+    # Personal contacts that shouldn't be recommendations
+    personal_contacts = ['אבא', 'אמא', 'אבא של', 'אמא של', 'אח', 'אחות', 'אח של', 'אחות של']
+    if name in personal_contacts:
         return False
     
     # Check for URL-like patterns
@@ -328,7 +337,9 @@ def extract_text_recommendations(messages: List[Dict], vcf_data: Dict) -> List[D
                 if name_match:
                     candidate = name_match.group(1).strip()
                     # Filter out common non-name words and validate it's a real name
-                    if candidate and len(candidate) >= 2 and is_valid_name(candidate) and not any(word in candidate.lower() for word in ['תתקשר', 'יש', 'את', 'ל', 'מישהו', 'חברים', 'המלצה']):
+                    # Exclude common Hebrew verbs/words that aren't names
+                    excluded_words = ['תתקשר', 'יש', 'את', 'ל', 'מישהו', 'חברים', 'המלצה', 'פנו', 'ות']
+                    if candidate and len(candidate) >= 2 and is_valid_name(candidate) and not any(word in candidate.lower() for word in excluded_words):
                         name = candidate
                         break
             
@@ -351,6 +362,13 @@ def extract_text_recommendations(messages: List[Dict], vcf_data: Dict) -> List[D
             service = extract_service_from_context(text, idx, messages)
             if not service:
                 service = extract_service_from_context(context, None, None)
+            
+            # Clean name (remove newlines, normalize whitespace)
+            if name:
+                name = name.replace('\n', ' ').strip()
+                # Validate name again after cleaning
+                if not is_valid_name(name):
+                    name = None
             
             if name or service:  # At least name or service to be a valid recommendation
                 recommendations.append({
@@ -383,6 +401,14 @@ def extract_vcf_mentions(messages: List[Dict], vcf_data: Dict) -> List[Dict]:
             if vcf_key in vcf_data:
                 vcf_info = vcf_data[vcf_key]
                 
+                # Clean and validate name
+                name = vcf_info['name']
+                if name:
+                    name = name.replace('\n', ' ').strip()
+                    # Skip personal contacts
+                    if not is_valid_name(name):
+                        continue
+                
                 # Get context (message and surrounding messages if available)
                 context = msg['text']
                 
@@ -393,7 +419,7 @@ def extract_vcf_mentions(messages: List[Dict], vcf_data: Dict) -> List[Dict]:
                     vcf_info['service'] = service_from_context
                 
                 recommendations.append({
-                    'name': vcf_info['name'],
+                    'name': name,
                     'phone': vcf_info['phone'],
                     'service': vcf_info.get('service'),
                     'date': msg['date'],
@@ -410,8 +436,16 @@ def include_unmentioned_vcf_files(vcf_data: Dict, mentioned_filenames: set) -> L
     
     for vcf_key, vcf_info in vcf_data.items():
         if vcf_key not in mentioned_filenames:
+            # Clean and validate name
+            name = vcf_info['name']
+            if name:
+                name = name.replace('\n', ' ').strip()
+                # Skip personal contacts
+                if not is_valid_name(name):
+                    continue
+            
             recommendations.append({
-                'name': vcf_info['name'],
+                'name': name,
                 'phone': vcf_info['phone'],
                 'service': vcf_info.get('service'),
                 'date': None,
@@ -486,6 +520,12 @@ def main():
         json.dump(unique_recs, f, ensure_ascii=False, indent=2)
     
     print(f"Done! Generated {output_file} with {len(unique_recs)} recommendations.")
+    
+    # Analyze the output for potential issues
+    print("\n" + "="*50)
+    print("Analyzing recommendations for potential issues...")
+    print("="*50)
+    analyze_recommendations(output_file, verbose=True)
 
 
 if __name__ == '__main__':
