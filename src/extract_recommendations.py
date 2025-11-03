@@ -8,9 +8,14 @@ Outputs a JSON file with all recommendations.
 import re
 import json
 import os
+import sys
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
+
+# Add src directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent))
+from utils import normalize_phone, extract_phone_numbers
 
 
 
@@ -102,41 +107,6 @@ def parse_all_vcf_files(data_dir: Path) -> Dict[str, Dict]:
             # Use filename (case-insensitive) as key
             vcf_data[vcf_file.name.lower()] = parsed
     return vcf_data
-
-
-def normalize_phone(phone_str: str) -> str:
-    """Normalize phone number format."""
-    # Remove all non-digit and non-+ characters except dashes
-    phone = re.sub(r'[^\d+\-]', '', phone_str.strip())
-    # Ensure consistent format
-    if phone.startswith('+972'):
-        phone = phone.replace(' ', '-')
-    elif phone.startswith('0'):
-        # Convert 05X-XXX-XXXX to +972 format
-        if len(phone.replace('-', '')) == 10:
-            phone = '+972-' + phone[1:4] + '-' + phone[4:]
-    return phone
-
-
-def extract_phone_numbers(text: str) -> List[str]:
-    """Extract phone numbers from text (Israeli format)."""
-    # Patterns for Israeli phone numbers
-    patterns = [
-        r'\+972[\s\-]?\d{1,2}[\s\-]?\d{3}[\s\-]?\d{4}',  # +972 format
-        r'0\d{1,2}[\s\-]?\d{3}[\s\-]?\d{4}',  # 05X-XXX-XXXX format
-        r'\d{3}[\s\-]?\d{3}[\s\-]?\d{4}',  # XXX-XXX-XXXX (might be partial)
-    ]
-    
-    phones = []
-    for pattern in patterns:
-        matches = re.findall(pattern, text)
-        for match in matches:
-            normalized = normalize_phone(match)
-            # Only add if it looks like a valid phone number
-            if len(re.sub(r'[^\d]', '', normalized)) >= 9:
-                phones.append(normalized)
-    
-    return list(set(phones))  # Remove duplicates
 
 
 def extract_service_from_context(text: str, message_index: int = None, all_messages: List[Dict] = None) -> Optional[str]:
@@ -237,6 +207,78 @@ def parse_whatsapp_chat(chat_file: Path) -> List[Dict]:
     return messages
 
 
+def parse_all_chat_files(text_dir: Path) -> List[Dict]:
+    """Parse all .txt WhatsApp chat files and return a list of all messages."""
+    all_messages = []
+    
+    if not text_dir.exists():
+        print(f"  No chat files found in {text_dir}")
+        return all_messages
+    
+    chat_files = list(text_dir.glob('*.txt'))
+    if not chat_files:
+        print(f"  No chat files found in {text_dir}")
+        return all_messages
+    
+    for chat_file in chat_files:
+        try:
+            messages = parse_whatsapp_chat(chat_file)
+            all_messages.extend(messages)
+        except Exception as e:
+            print(f"Error parsing {chat_file.name}: {e}")
+    
+    print(f"  Found {len(all_messages)} messages from chat files")
+    return all_messages
+
+
+def is_valid_name(name: str) -> bool:
+    """Validate that a name candidate is not a URL, URL parameter, or other non-name string."""
+    if not name or len(name) < 2:
+        return False
+    
+    # Check for URL-like patterns
+    url_indicators = [
+        r'^https?://',  # URL protocol
+        r'^www\.',      # www. prefix
+        r'\.(com|net|org|co\.il|gov)',  # Domain extensions
+        r'[?&]',        # URL query parameters
+        r'=',           # URL parameters (key=value)
+        r'%[0-9A-Fa-f]{2}',  # URL encoding
+        r'gclid=',      # Google Ads tracking
+        r'fbid=',       # Facebook ID
+        r'campaignid=', # Campaign ID
+        r'gad_source=', # Google Ads source
+        r'gbraid=',     # Google Ads tracking
+        r'utm_',        # UTM parameters
+        r'story_fbid',  # Facebook story ID
+    ]
+    
+    name_lower = name.lower()
+    
+    # Check for URL indicators
+    for pattern in url_indicators:
+        if re.search(pattern, name_lower):
+            return False
+    
+    # Check if it looks like URL parameters (contains multiple = or &)
+    if name.count('=') > 0 or name.count('&') > 0:
+        # Allow single = only if it's clearly not a URL (e.g., "Name=Value" would be suspicious)
+        if name.count('&') > 0 or (name.count('=') > 0 and ('&' in name or '?' in name)):
+            return False
+    
+    # Check if it's mostly alphanumeric with special URL-like characters
+    # Names shouldn't have too many special characters unless they're punctuation
+    non_name_chars = sum(1 for c in name if c in '=?&/%#')
+    if non_name_chars > 2:  # Too many URL-like characters
+        return False
+    
+    # If it starts with common URL parameter prefixes, reject it
+    if re.match(r'^(gad_|utm_|gclid|fbid|campaignid|gbraid)', name_lower):
+        return False
+    
+    return True
+
+
 def extract_text_recommendations(messages: List[Dict], vcf_data: Dict) -> List[Dict]:
     """Extract recommendations from chat text (name + phone patterns)."""
     recommendations = []
@@ -284,8 +326,8 @@ def extract_text_recommendations(messages: List[Dict], vcf_data: Dict) -> List[D
                 name_match = re.search(pattern, before_phone, re.IGNORECASE)
                 if name_match:
                     candidate = name_match.group(1).strip()
-                    # Filter out common non-name words
-                    if candidate and len(candidate) >= 2 and not any(word in candidate.lower() for word in ['תתקשר', 'יש', 'את', 'ל', 'מישהו', 'חברים', 'המלצה']):
+                    # Filter out common non-name words and validate it's a real name
+                    if candidate and len(candidate) >= 2 and is_valid_name(candidate) and not any(word in candidate.lower() for word in ['תתקשר', 'יש', 'את', 'ל', 'מישהו', 'חברים', 'המלצה']):
                         name = candidate
                         break
             
@@ -298,10 +340,11 @@ def extract_text_recommendations(messages: List[Dict], vcf_data: Dict) -> List[D
                         # Extract potential name from sentence
                         words = sentence.split()
                         for word in words:
-                            if word != phone and len(word) >= 2 and word[0].isalpha():
+                            if word != phone and len(word) >= 2 and word[0].isalpha() and is_valid_name(word):
                                 name = word
                                 break
-                        break
+                        if name:
+                            break
             
             # Intelligently extract service from context
             service = extract_service_from_context(text, idx, messages)
@@ -380,24 +423,29 @@ def include_unmentioned_vcf_files(vcf_data: Dict, mentioned_filenames: set) -> L
 
 def main():
     """Main extraction function."""
-    vcf_dir = Path('data/vcf')
-    chat_file = Path('data/text/WhatsApp Chat with זרע יהודה.txt')
-    output_file = Path('recommendations.json')
+    # Get project root (parent of src/)
+    project_root = Path(__file__).parent.parent
+    vcf_dir = project_root / 'data' / 'vcf'
+    text_dir = project_root / 'data' / 'txt'  # Using 'txt' since that's where your file is
+    output_file = project_root / 'web' / 'recommendations.json'
     
     print("Step 1: Parsing .vcf files...")
     vcf_data = parse_all_vcf_files(vcf_dir)
     print(f"  Found {len(vcf_data)} .vcf files")
     
-    print("\nStep 2: Parsing WhatsApp chat...")
-    messages = parse_whatsapp_chat(chat_file)
-    print(f"  Found {len(messages)} messages")
+    print("\nStep 2: Parsing WhatsApp chat files...")
+    all_messages = parse_all_chat_files(text_dir)
+    
+    if not all_messages and not vcf_data:
+        print("\nError: No data to process. Please add chat files to data/txt/ or VCF files to data/vcf/")
+        return
     
     print("\nStep 3: Extracting text recommendations...")
-    text_recs = extract_text_recommendations(messages, vcf_data)
+    text_recs = extract_text_recommendations(all_messages, vcf_data)
     print(f"  Found {len(text_recs)} text recommendations")
     
     print("\nStep 4: Extracting .vcf mentions from chat...")
-    vcf_mentions = extract_vcf_mentions(messages, vcf_data)
+    vcf_mentions = extract_vcf_mentions(all_messages, vcf_data)
     print(f"  Found {len(vcf_mentions)} .vcf file mentions")
     
     # Track which .vcf files were mentioned
@@ -435,6 +483,8 @@ def main():
     print(f"  Total unique recommendations: {len(unique_recs)}")
     
     print(f"\nWriting output to {output_file}...")
+    # Ensure output directory exists
+    output_file.parent.mkdir(parents=True, exist_ok=True)
     with open(output_file, 'w', encoding='utf-8') as f:
         json.dump(unique_recs, f, ensure_ascii=False, indent=2)
     

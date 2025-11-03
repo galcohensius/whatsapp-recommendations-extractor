@@ -99,7 +99,7 @@ Total recommendations: 272
 | איתן שערים חשמליים | 054-300-8647 | מקצוע לתיקון שער חשמלי | 2024-01-19 | +972 52-360-2010 | איתן שערים חשמליים.vcf (file attached) |
 | חיליק | 052-299-4357 | מקצוע לתקן ידית של דלת ממד | 2025-06-19 | +972 52-442-0487 | חיליק.vcf (file attached) |
 | ציון עידן | 053-365-5555 | משאית מנוף דחוף | 2025-07-06 | +972 52-464-6023 | ציון עידן.vcf (file attached) |
-| gad_source=1&gad_campaignid=17336536494&gbraid=0AAAAADLMOpqtW8ZOvSoAc0gHqwDirD3xb&gclid=Cj0KCQjwxdXBBhDEARIsAAUkP6jDykzgJ-Pe59i4d-KoM90lS6 | 173-365-3649 | משהו שמתאים לצינור 8 או 6 ממ | 2025-05-27 | +972 52-847-7773 | %D7%A1%D7%A0%D7%9F-%D7%AA%D7%95%D7%90%D7%9D-%D7%9C%D7%AA%... |
+| Unknown | 173-365-3649 | משהו שמתאים לצינור 8 או 6 ממ | 2025-05-27 | +972 52-847-7773 | %D7%A1%D7%A0%D7%9F-%D7%AA%D7%95%D7%90%D7%9D-%D7%9C%D7%AA%... |
 | Carmel Mazgan | 052-357-9007 | מתווך שיוכל לסייע לי | 2023-11-22 | +972 53-279-8788 | Carmel Mazgan.vcf (file attached) |
 | קוצי אינסטלטור | 050-550-8688 | מתווך תגיד | 2024-12-12 | gal cohensius | קוצי אינסטלטור.vcf (file attached) |
 | פיני דשא סינטטי חבר של גלעד הגנן | 052-259-3265 | מתקין דשא סינטטי | 2025-05-14 | gal cohensius | פיני דשא סינטטי חבר של גלעד הגנן.vcf (file attached) |
@@ -139,8 +139,8 @@ Total recommendations: 272
 | Pro Sound יוגב התקנת מערכות רדיו | 054-282-7525 |  | 2025-01-14 | +972 55-666-1455 | Pro Sound יוגב התקנת מערכות רדיו.vcf (file attached) |
 | Raz Yefet | 054-464-8912 |  | 2025-02-05 | +972 53-279-8788 | Raz Yefet.vcf (file attached) |
 | Shali Arusi | 054-216-1480 |  | 2025-06-27 | +972 53-279-8788 | Shali Arusi.vcf (file attached) |
-| story_fbid=pfbid02vL5dXDQeEXs8LXFg7pm4y4nvjhYGDT5XdWF6gdvv2qo74oWDg6tcAnXKTg8NJsakl&id=100064810296238 | 100-064-8102 |  | 2023-11-12 | +972 50-531-4458 | om/story.php?story_fbid=pfbid02vL5dXDQeEXs8LXFg7pm4y4nvjh... |
 | Tzahi Saat | 055-560-6703 |  | 2025-01-30 | +972 53-279-8788 | Tzahi Saat.vcf (file attached) |
+| Unknown | 100-064-8102 |  | 2023-11-12 | +972 50-531-4458 | om/story.php?story_fbid=pfbid02vL5dXDQeEXs8LXFg7pm4y4nvjh... |
 | Uz Handyman Even Yehuda | 052-421-3338 |  | 2024-07-28 | +972 54-806-0399 | Uz Handyman Even Yehuda.vcf (file attached) 28/07/2024, 1... |
 | Yaron Sade | 052-301-4445 |  | 2025-09-15 | +972 53-279-8788 | Yaron Sade.vcf (file attached) |
 | Zalman Gag | 052-273-5175 |  | 2025-05-02 | +972 53-279-8788 | Zalman Gag.vcf (file attached) |

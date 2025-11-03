@@ -39,5 +39,9 @@ Thumbs.db
 
 # Project specific
 *.vcf
-data/
+# Ignore files in data directories, but keep the directories
+data/txt/*
+data/vcf/*
+!data/txt/.gitkeep
+!data/vcf/.gitkeep
 

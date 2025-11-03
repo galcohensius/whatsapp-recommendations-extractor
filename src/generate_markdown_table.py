@@ -5,35 +5,13 @@ Generate a markdown table from recommendations.json
 """
 
 import json
+import sys
 from pathlib import Path
 from typing import List, Dict
 
-
-def format_phone(phone: str) -> str:
-    """Format phone number for display."""
-    if not phone:
-        return ""
-    # Clean up the phone number
-    phone = str(phone).strip()
-    
-    # Handle +972 format
-    if phone.startswith('+972'):
-        phone = phone.replace('+972-', '').replace('+972', '').replace('-', '')
-        if phone.startswith('0'):
-            return phone[:3] + '-' + phone[3:6] + '-' + phone[6:]
-        else:
-            return '0' + phone[:2] + '-' + phone[2:5] + '-' + phone[5:]
-    
-    # Already in local format, ensure proper formatting
-    phone = phone.replace(' ', '-').replace('(', '').replace(')', '')
-    # If it doesn't have dashes and is 9-10 digits, add them
-    digits_only = ''.join(c for c in phone if c.isdigit())
-    if len(digits_only) == 9:
-        return digits_only[:2] + '-' + digits_only[2:5] + '-' + digits_only[5:]
-    elif len(digits_only) == 10:
-        return digits_only[:3] + '-' + digits_only[3:6] + '-' + digits_only[6:]
-    
-    return phone
+# Add src directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent))
+from utils import format_phone
 
 
 def format_date(date: str) -> str:
@@ -99,8 +77,10 @@ def generate_markdown_table(recommendations: List[Dict], output_file: Path) -> N
 
 def main():
     """Main function."""
-    input_file = Path('recommendations.json')
-    output_file = Path('recommendations.md')
+    # Get project root (parent of src/)
+    project_root = Path(__file__).parent.parent
+    input_file = project_root / 'web' / 'recommendations.json'
+    output_file = project_root / 'output' / 'recommendations.md'
     
     if not input_file.exists():
         print(f"Error: {input_file} not found!")
