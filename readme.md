@@ -52,9 +52,9 @@ python src/cleanup_recommendations.py
 
 ## Running the Web Interface
 
-To view the interactive web interface, you need to serve it through a local web server (required because the page loads data from `recommendations.json`).
+To view the interactive web interface, you need to run a local server (required because the page loads data from `recommendations.json`).
 
-### Option 1: Serve from web directory (Recommended)
+### Option 1: Run from web directory (Recommended)
 
 ```bash
 cd web
@@ -63,7 +63,7 @@ python -m http.server 8000
 
 Then open your browser and navigate to: `http://localhost:8000`
 
-### Option 2: Serve from project root
+### Option 2: Run from project root
 
 ```bash
 # From project root
