@@ -1,6 +1,6 @@
 # Recommendations
 
-Total recommendations: 272
+Total recommendations: 271
 
 | Name | Phone | Service | Date | Recommender | Context |
 |------|-------|---------|------|-------------|--------|
@@ -140,7 +140,6 @@ Total recommendations: 272
 | Raz Yefet | 054-464-8912 |  | 2025-02-05 | +972 53-279-8788 | Raz Yefet.vcf (file attached) |
 | Shali Arusi | 054-216-1480 |  | 2025-06-27 | +972 53-279-8788 | Shali Arusi.vcf (file attached) |
 | Tzahi Saat | 055-560-6703 |  | 2025-01-30 | +972 53-279-8788 | Tzahi Saat.vcf (file attached) |
-| Unknown | 100-064-8102 |  | 2023-11-12 | +972 50-531-4458 | om/story.php?story_fbid=pfbid02vL5dXDQeEXs8LXFg7pm4y4nvjh... |
 | Uz Handyman Even Yehuda | 052-421-3338 |  | 2024-07-28 | +972 54-806-0399 | Uz Handyman Even Yehuda.vcf (file attached) 28/07/2024, 1... |
 | Yaron Sade | 052-301-4445 |  | 2025-09-15 | +972 53-279-8788 | Yaron Sade.vcf (file attached) |
 | Zalman Gag | 052-273-5175 |  | 2025-05-02 | +972 53-279-8788 | Zalman Gag.vcf (file attached) |

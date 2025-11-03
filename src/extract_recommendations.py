@@ -56,7 +56,7 @@ def extract_service_from_filename(filename: str, name: Optional[str] = None) -> 
     return None
 
 
-def parse_vcf_file(vcf_path: Path) -> Optional[Dict[str, str]]:
+def parse_vcf_file(vcf_path: Path) -> Optional[Dict[str, Optional[str]]]:
     """Parse a .vcf file and extract name, phone, and infer service from filename."""
     try:
         with open(vcf_path, 'r', encoding='utf-8') as f:
@@ -109,7 +109,7 @@ def parse_all_vcf_files(data_dir: Path) -> Dict[str, Dict]:
     return vcf_data
 
 
-def extract_service_from_context(text: str, message_index: int = None, all_messages: List[Dict] = None) -> Optional[str]:
+def extract_service_from_context(text: str, message_index: Optional[int] = None, all_messages: Optional[List[Dict]] = None) -> Optional[str]:
     """Intelligently extract service/category from chat context.
     
     Looks for:
@@ -228,6 +228,7 @@ def parse_all_chat_files(text_dir: Path) -> List[Dict]:
             print(f"Error parsing {chat_file.name}: {e}")
     
     print(f"  Found {len(all_messages)} messages from chat files")
+    
     return all_messages
 
 
@@ -435,10 +436,6 @@ def main():
     
     print("\nStep 2: Parsing WhatsApp chat files...")
     all_messages = parse_all_chat_files(text_dir)
-    
-    if not all_messages and not vcf_data:
-        print("\nError: No data to process. Please add chat files to data/txt/ or VCF files to data/vcf/")
-        return
     
     print("\nStep 3: Extracting text recommendations...")
     text_recs = extract_text_recommendations(all_messages, vcf_data)
