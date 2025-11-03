@@ -233,6 +233,45 @@ def parse_all_chat_files(text_dir: Path) -> List[Dict]:
     return all_messages
 
 
+def get_full_context_for_recommendation(rec: Dict, messages: List[Dict], context_window: int = 5) -> str:
+    """Get full chat context for a recommendation.
+    
+    Args:
+        rec: Recommendation dictionary with 'message_index' field
+        messages: List of all parsed messages
+        context_window: Number of messages before and after to include (default: 5)
+    
+    Returns:
+        Formatted string with full context, or original context if message_index is None
+    """
+    message_index = rec.get('message_index')
+    
+    # If no message index (e.g., unmentioned VCF files), return original context
+    if message_index is None:
+        return rec.get('context', '')
+    
+    # Ensure message_index is valid
+    if message_index < 0 or message_index >= len(messages):
+        return rec.get('context', '')
+    
+    # Get surrounding messages
+    start_idx = max(0, message_index - context_window)
+    end_idx = min(len(messages), message_index + context_window + 1)
+    
+    context_messages = []
+    for i in range(start_idx, end_idx):
+        msg = messages[i]
+        date_str = msg.get('date', 'Unknown date')
+        sender = msg.get('sender', 'Unknown sender')
+        text = msg.get('text', '')
+        
+        # Mark the message that contains the recommendation
+        marker = ">>> " if i == message_index else "    "
+        context_messages.append(f"{marker}[{date_str}] {sender}: {text}")
+    
+    return "\n".join(context_messages)
+
+
 def is_valid_name(name: str) -> bool:
     """Validate that a name candidate is not a URL, URL parameter, personal contact, or other non-name string."""
     if not name or len(name) < 2:
@@ -377,7 +416,8 @@ def extract_text_recommendations(messages: List[Dict], vcf_data: Dict) -> List[D
                     'service': service,
                     'date': msg['date'],
                     'recommender': msg['sender'],
-                    'context': context.strip()
+                    'context': context.strip(),
+                    'message_index': idx  # Store message index for context lookup
                 })
     
     return recommendations
@@ -424,7 +464,8 @@ def extract_vcf_mentions(messages: List[Dict], vcf_data: Dict) -> List[Dict]:
                     'service': vcf_info.get('service'),
                     'date': msg['date'],
                     'recommender': msg['sender'],
-                    'context': context.strip()
+                    'context': context.strip(),
+                    'message_index': idx  # Store message index for context lookup
                 })
     
     return recommendations
@@ -450,7 +491,8 @@ def include_unmentioned_vcf_files(vcf_data: Dict, mentioned_filenames: set) -> L
                 'service': vcf_info.get('service'),
                 'date': None,
                 'recommender': None,
-                'context': f"From file: {vcf_info['filename']}"
+                'context': f"From file: {vcf_info['filename']}",
+                'message_index': None  # No message index for unmentioned VCF files
             })
     
     return recommendations
