@@ -19,6 +19,29 @@ sys.path.insert(0, str(Path(__file__).parent))
 from extract_txt_and_vcf import is_valid_name
 
 
+def clean_context_text(context: str) -> str:
+    """Clean context field to remove unwanted patterns."""
+    if not context:
+        return context
+    
+    cleaned = context
+    
+    # Remove "vcf (file attached)" patterns
+    cleaned = re.sub(r'\.vcf\s*\(file attached\)', '', cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r'\(file attached\)', '', cleaned, flags=re.IGNORECASE)
+    
+    # Remove truecaller.com URLs
+    cleaned = re.sub(r'https?://[^\s]*truecaller\.com[^\s]*', '', cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r'truecaller\.com/[^\s]*', '', cleaned, flags=re.IGNORECASE)
+    
+    # Clean up multiple spaces and periods
+    cleaned = re.sub(r'\s+', ' ', cleaned)
+    cleaned = re.sub(r'\.\s*\.', '.', cleaned)
+    cleaned = re.sub(r'\s*\.\s*$', '', cleaned)
+    
+    return cleaned.strip()
+
+
 def clean_service_text(service: str) -> str:
     """Clean service field to remove conversational prefixes."""
     if not service:
@@ -111,6 +134,20 @@ def fix_recommendations(input_file: Path, output_file: Optional[Path] = None) ->
                 services_cleaned += 1
     
     print(f"  Cleaned {services_cleaned} service fields")
+    
+    # Step 2.5: Clean context fields (remove vcf/file attached and truecaller URLs)
+    print("\nStep 2.5: Cleaning context fields...")
+    contexts_cleaned = 0
+    
+    for rec in unique_recs:
+        context = rec.get('context')
+        if context and isinstance(context, str):
+            cleaned = clean_context_text(context)
+            if cleaned != context:
+                rec['context'] = cleaned if cleaned else None
+                contexts_cleaned += 1
+    
+    print(f"  Cleaned {contexts_cleaned} context fields")
     
     # Step 3: Clean and fix names
     print("\nStep 3: Cleaning names...")

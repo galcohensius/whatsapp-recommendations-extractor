@@ -71,7 +71,7 @@ def build_enhancement_prompt_for_null_services(recommendations: List[Dict], mess
     prompt_parts.append("Requirements:")
     prompt_parts.append("- Return ALL recommendations in the same order")
     prompt_parts.append("- ONLY update the 'service' field (with OCCUPATION) for entries where service was null")
-    prompt_parts.append("- Extract OCCUPATION from the extended context (e.g., 'מתקין מזגנים', 'חשמלאי', 'אינסטלטור', 'רופא', 'טכנאי מחשבים')")
+    prompt_parts.append("- Extract OCCUPATION from the extended context (e.g., 'מתקין מזגנים', 'חשמלאי', 'אינסטלטור', 'רופא', 'טכנאי מחשבים', 'גנן', 'מתווך')")
     prompt_parts.append("- Update 'context' field with additional relevant information (work quality, location, pricing, specializations, etc.)")
     prompt_parts.append("- Update 'recommender' field: Extract recommender's NAME from chat context and format as 'Name - Phone' (e.g., 'דוד כהן - 050-1234567')")
     prompt_parts.append("- If recommender name cannot be found, keep existing recommender value")
@@ -543,11 +543,44 @@ def enhance_null_services_with_openai(
                     for i, orig_rec in enumerate(batch):
                         enhanced_rec = enhanced[i] if i < len(enhanced) else None
                         if enhanced_rec:
+                            # Normalize field names (handle both lowercase and capitalized)
+                            def get_field(rec, field_name):
+                                """Get field value with case-insensitive lookup"""
+                                # Try exact match first
+                                if field_name in rec:
+                                    val = rec[field_name]
+                                    if val and val != 'None' and val != 'null':
+                                        return val
+                                # Try capitalized version (Service, Name, Phone, etc.)
+                                capitalized = field_name.capitalize()
+                                if capitalized in rec:
+                                    val = rec[capitalized]
+                                    if val and val != 'None' and val != 'null':
+                                        return val
+                                # Try all common variations
+                                variations = {
+                                    'name': ['Name', 'NAME'],
+                                    'phone': ['Phone', 'PHONE'],
+                                    'service': ['Service', 'SERVICE'],
+                                    'recommender': ['Recommender', 'RECOMMENDER'],
+                                    'context': ['Context', 'CONTEXT'],
+                                    'date': ['Date', 'DATE']
+                                }
+                                if field_name.lower() in variations:
+                                    for var in variations[field_name.lower()]:
+                                        if var in rec:
+                                            val = rec[var]
+                                            if val and val != 'None' and val != 'null':
+                                                return val
+                                return None
+                            
                             # Update service (occupation) if extracted
-                            if enhanced_rec.get('service'):
-                                orig_rec['service'] = enhanced_rec['service']
+                            service = get_field(enhanced_rec, 'service')
+                            if service:
+                                orig_rec['service'] = service
+                            
                             # Update context with additional information
-                            enhanced_context = enhanced_rec.get('context', '')
+                            enhanced_context = get_field(enhanced_rec, 'context') or enhanced_rec.get('context', '')
                             orig_context = orig_rec.get('context', '')
                             if enhanced_context and enhanced_context != orig_context:
                                 if orig_context and orig_context.strip():
@@ -559,7 +592,7 @@ def enhance_null_services_with_openai(
                                     # No original context, use enhanced
                                     orig_rec['context'] = enhanced_context
                             # Update recommender with name if enhanced version has it
-                            enhanced_recommender = enhanced_rec.get('recommender', '')
+                            enhanced_recommender = get_field(enhanced_rec, 'recommender') or enhanced_rec.get('recommender', '')
                             orig_recommender = orig_rec.get('recommender', '')
                             if enhanced_recommender and enhanced_recommender != orig_recommender:
                                 # Check if enhanced has name format (contains ' - ')
@@ -670,18 +703,47 @@ def merge_enhancements(original: List[Dict], enhanced: List[Dict]) -> List[Dict]
             # Merge: use enhanced data but preserve original structure and metadata
             merged_rec = orig_rec.copy()
             
+            # Helper function for case-insensitive field lookup
+            def get_field(rec, field_name):
+                """Get field value with case-insensitive lookup"""
+                if field_name in rec:
+                    val = rec[field_name]
+                    if val and val != 'None' and val != 'null':
+                        return val
+                capitalized = field_name.capitalize()
+                if capitalized in rec:
+                    val = rec[capitalized]
+                    if val and val != 'None' and val != 'null':
+                        return val
+                variations = {
+                    'name': ['Name', 'NAME'],
+                    'phone': ['Phone', 'PHONE'],
+                    'service': ['Service', 'SERVICE'],
+                    'recommender': ['Recommender', 'RECOMMENDER'],
+                    'context': ['Context', 'CONTEXT'],
+                    'date': ['Date', 'DATE']
+                }
+                if field_name.lower() in variations:
+                    for var in variations[field_name.lower()]:
+                        if var in rec:
+                            val = rec[var]
+                            if val and val != 'None' and val != 'null':
+                                return val
+                return None
+            
             # Always preserve: phone, date, message_index, service (if already exists)
             # Update: name, service (only if null), context (additional info), recommender (add name if available)
             
             # Update service (occupation) ONLY if original was null
-            if enhanced_rec.get('service'):
+            service = get_field(enhanced_rec, 'service')
+            if service:
                 if not orig_rec.get('service'):
                     # Original was null, use enhanced
-                    merged_rec['service'] = enhanced_rec['service']
+                    merged_rec['service'] = service
                 # Do NOT update service if it already exists (preserve existing value)
             
             # Improve name if enhanced is better
-            enhanced_name = enhanced_rec.get('name')
+            enhanced_name = get_field(enhanced_rec, 'name') or enhanced_rec.get('name')
             orig_name = orig_rec.get('name')
             if enhanced_name:
                 if (orig_name == 'Unknown' and enhanced_name != 'Unknown'):
@@ -692,7 +754,7 @@ def merge_enhancements(original: List[Dict], enhanced: List[Dict]) -> List[Dict]
                     merged_rec['name'] = enhanced_name
             
             # Update context with additional information from enhanced version
-            enhanced_context = enhanced_rec.get('context', '')
+            enhanced_context = get_field(enhanced_rec, 'context') or enhanced_rec.get('context', '')
             orig_context = orig_rec.get('context', '')
             if enhanced_context and enhanced_context != orig_context:
                 # Merge context: combine if both exist, or use enhanced if it's more detailed
@@ -707,7 +769,7 @@ def merge_enhancements(original: List[Dict], enhanced: List[Dict]) -> List[Dict]
                     merged_rec['context'] = enhanced_context
             
             # Update recommender with name if enhanced version has it
-            enhanced_recommender = enhanced_rec.get('recommender', '')
+            enhanced_recommender = get_field(enhanced_rec, 'recommender') or enhanced_rec.get('recommender', '')
             orig_recommender = orig_rec.get('recommender', '')
             if enhanced_recommender and enhanced_recommender != orig_recommender:
                 # Check if enhanced has name format (contains ' - ' and looks like 'Name - Phone')
