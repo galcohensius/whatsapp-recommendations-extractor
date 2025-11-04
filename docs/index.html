@@ -181,6 +181,24 @@
             background: #5568d3;
         }
 
+        th[data-column="service"] {
+            width: 40%;
+            min-width: 200px;
+        }
+        th[data-column="recommender"] {
+            width: 18%;
+            min-width: 150px;
+        }
+
+        .recommender-col {
+            white-space: nowrap;
+        }
+        .service-col {
+            width: 40%;
+            word-wrap: break-word;
+            white-space: normal;
+        }
+
         th.sortable::after {
             content: ' ↕';
             font-size: 12px;
@@ -340,7 +358,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>📋 המלצות</h1>
+            <h1>📋 המלצות מהווטצאפ</h1>
             <div class="stats">
                 <span id="total-count">טוען...</span> המלצות 
                 <span id="filtered-count" style="opacity: 0.7;"></span>
@@ -384,9 +402,9 @@
                 <table id="recommendations-table">
                     <thead>
                         <tr>
+                            <th class="sortable" data-column="service">שירות</th>
                             <th class="sortable" data-column="name">שם</th>
                             <th class="sortable" data-column="phone">טלפון</th>
-                            <th class="sortable" data-column="service">שירות</th>
                             <th class="sortable" data-column="date">תאריך</th>
                             <th class="sortable" data-column="recommender">ממליץ</th>
                             <th data-column="context">הקשר</th>
@@ -403,7 +421,7 @@
     <script>
         let recommendations = [];
         let filteredRecommendations = [];
-        let sortConfig = { column: null, direction: 'asc' };
+        let sortConfig = { column: 'service', direction: 'asc' };
         let isGrouped = false;
         let debounceTimer = null;
 
@@ -495,6 +513,8 @@
                     filteredRecommendations = [...recommendations];
                     updateStats();
                     applyFiltersAndRender();
+                    // Update sort indicator after rendering
+                    updateSortIndicator();
                     document.getElementById('loading').style.display = 'none';
                 })
                 .catch(error => {
@@ -666,7 +686,7 @@
                                     <th>שם</th>
                                     <th>טלפון</th>
                                     <th>תאריך</th>
-                                    <th>ממליץ</th>
+                                    <th class="recommender-col">ממליץ</th>
                                     <th>הקשר</th>
                                 </tr>
                             </thead>
@@ -704,18 +724,17 @@
             const recommender = rec.recommender || '';
             const context = truncateText(rec.context, 60);
 
-            let html = `
-                <td><strong>${escapeHtml(name)}</strong></td>
-                <td><a href="${phoneLink}" class="phone-link">${phone}</a></td>
-            `;
+            let html = '';
             
             if (!skipService) {
-                html += `<td>${service ? `<span class="service-badge">${escapeHtml(service)}</span>` : ''}</td>`;
+                html += `<td class="service-col">${service ? `<span class="service-badge">${escapeHtml(service)}</span>` : ''}</td>`;
             }
             
             html += `
+                <td><strong>${escapeHtml(name)}</strong></td>
+                <td><a href="${phoneLink}" class="phone-link">${phone}</a></td>
                 <td class="date">${date}</td>
-                <td>${escapeHtml(recommender)}</td>
+                <td class="recommender-col">${escapeHtml(recommender)}</td>
                 <td class="context" title="${escapeHtml(rec.context || '')}">${escapeHtml(context)}</td>
             `;
             
