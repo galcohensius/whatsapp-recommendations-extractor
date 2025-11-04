@@ -587,6 +587,16 @@
             if (!sortConfig.column) return;
 
             filteredRecommendations.sort((a, b) => {
+                // First, handle null/empty services - always put them at the bottom
+                const aServiceNull = !a.service || a.service === null || a.service === '';
+                const bServiceNull = !b.service || b.service === null || b.service === '';
+                
+                if (aServiceNull && !bServiceNull) return 1;  // a goes to bottom
+                if (!aServiceNull && bServiceNull) return -1; // b goes to bottom
+                if (aServiceNull && bServiceNull) {
+                    // Both are null, continue with normal sorting
+                }
+
                 let aVal = a[sortConfig.column];
                 let bVal = b[sortConfig.column];
 
@@ -666,8 +676,13 @@
             const container = document.getElementById('grouped-content');
             container.innerHTML = '';
 
-            // Sort groups by service name
-            const sortedGroups = Object.keys(grouped).sort();
+            // Sort groups by service name, with "ללא שירות" at the bottom
+            const sortedGroups = Object.keys(grouped).sort((a, b) => {
+                const noService = 'ללא שירות';
+                if (a === noService && b !== noService) return 1;  // a goes to bottom
+                if (a !== noService && b === noService) return -1; // b goes to bottom
+                return a.localeCompare(b, 'he'); // Normal Hebrew-aware sort
+            });
 
             sortedGroups.forEach(service => {
                 const groupDiv = document.createElement('div');
