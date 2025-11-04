@@ -544,90 +544,14 @@ def enhance_null_services_with_openai(
                 # Validate count
                 if len(enhanced) != len(batch):
                     print(f"        ⚠ Warning: Expected {len(batch)} recommendations, got {len(enhanced)}")
+                    print(f"          This may result in some recommendations not being enhanced. OpenAI may have filtered some items.")
                 
-                for i, orig_rec in enumerate(batch):
-                    enhanced_rec = enhanced[i] if i < len(enhanced) else None
-                    if enhanced_rec:
-                        # Preserve chat_message_index from original (never overwrite)
-                        original_chat_message_index = orig_rec.get('chat_message_index')
-                        
-                        # Normalize field names (handle both lowercase and capitalized)
-                        def get_field(rec, field_name):
-                            """Get field value with case-insensitive lookup"""
-                            # Try exact match first
-                            if field_name in rec:
-                                val = rec[field_name]
-                                if val and val != 'None' and val != 'null':
-                                    return val
-                            # Try capitalized version (Service, Name, Phone, etc.)
-                            capitalized = field_name.capitalize()
-                            if capitalized in rec:
-                                val = rec[capitalized]
-                                if val and val != 'None' and val != 'null':
-                                    return val
-                            # Try all common variations
-                            variations = {
-                                'name': ['Name', 'NAME'],
-                                'phone': ['Phone', 'PHONE'],
-                                'service': ['Service', 'SERVICE'],
-                                'recommender': ['Recommender', 'RECOMMENDER'],
-                                'context': ['Context', 'CONTEXT'],
-                                'date': ['Date', 'DATE']
-                            }
-                            if field_name.lower() in variations:
-                                for var in variations[field_name.lower()]:
-                                    if var in rec:
-                                        val = rec[var]
-                                        if val and val != 'None' and val != 'null':
-                                            return val
-                            return None
-                        
-                        # Update service (occupation) if extracted
-                        service = get_field(enhanced_rec, 'service')
-                        if service:
-                            orig_rec['service'] = service
-                        
-                        # Update context with additional information
-                        enhanced_context = get_field(enhanced_rec, 'context') or enhanced_rec.get('context', '')
-                        orig_context = orig_rec.get('context', '')
-                        if enhanced_context and enhanced_context != orig_context:
-                            if orig_context and orig_context.strip():
-                                # Combine contexts, avoiding duplicates
-                                if enhanced_context not in orig_context:
-                                    orig_rec['context'] = f"{orig_context}. {enhanced_context}".strip()
-                                # else keep original if enhanced is subset
-                            else:
-                                # No original context, use enhanced
-                                orig_rec['context'] = enhanced_context
-                        # Update recommender with name if enhanced version has it
-                        enhanced_recommender = get_field(enhanced_rec, 'recommender') or enhanced_rec.get('recommender', '')
-                        orig_recommender = orig_rec.get('recommender', '')
-                        if enhanced_recommender and enhanced_recommender != orig_recommender:
-                            # Only update if we have a valid name (not a default/guess)
-                            # Check if enhanced has "Name - Phone" format
-                            if ' - ' in enhanced_recommender:
-                                parts = enhanced_recommender.split(' - ', 1)
-                                if len(parts) == 2:
-                                    name_part = parts[0].strip()
-                                    phone_part = parts[1].strip()
-                                    # Skip if name is a known default (user's own name)
-                                    default_names = ['גאל כהנסיוס', 'gal cohensius', 'Gal Cohensius', 'GAL COHENSIUS', 
-                                                   'Unknown', 'unknown', 'UNKNOWN']
-                                    if name_part.lower() not in [n.lower() for n in default_names]:
-                                        # Valid name found, use it
-                                        orig_rec['recommender'] = enhanced_recommender
-                                    # If name is a default, preserve original phone number (don't replace with "גאל כהנסיוס - phone")
-                                    # Original recommender is already the sender phone number, so keep it
-                            elif not orig_recommender or orig_recommender == 'Unknown':
-                                # No original recommender, use enhanced (but validate it's not a default)
-                                default_names = ['גאל כהנסיוס', 'gal cohensius']
-                                if enhanced_recommender.lower() not in [n.lower() for n in default_names]:
-                                    orig_rec['recommender'] = enhanced_recommender
-                        
-                        # Ensure chat_message_index is preserved (never overwrite with OpenAI's value)
-                        if original_chat_message_index is not None:
-                            orig_rec['chat_message_index'] = original_chat_message_index
-                    
+                # Use merge_enhancements to properly match and merge (handles count mismatches better)
+                # This ensures all items in batch are preserved, even if OpenAI returns fewer items
+                merged_batch = merge_enhancements(batch, enhanced)
+                
+                # Add all merged items (merge_enhancements preserves all originals and merges enhancements)
+                for orig_rec in merged_batch:
                     all_enhanced_null.append(orig_rec)
                 
                 print(f"        ✓ Batch {batch_num + 1} completed")
