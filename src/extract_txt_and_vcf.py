@@ -610,16 +610,12 @@ def include_unmentioned_vcf_files(vcf_data: Dict, mentioned_filenames: set) -> L
 
 
 def extract_recommendations(
-    use_openai: bool = False,
-    openai_model: str = 'gpt-4o-mini',
     project_root: Optional[Path] = None,
     run_analysis: bool = True
 ) -> List[Dict]:
     """Extract recommendations from WhatsApp chats and VCF files.
     
     Args:
-        use_openai: Whether to use OpenAI API for enhancement
-        openai_model: OpenAI model to use for enhancement
         project_root: Project root directory (defaults to parent of src/)
         run_analysis: Whether to run analysis at the end (default: True)
     
@@ -633,7 +629,6 @@ def extract_recommendations(
     text_dir = project_root / 'data' / 'txt'
     output_file = project_root / 'web' / 'recommendations.json'
     backup_file = project_root / 'web' / 'recommendations_backup.json'
-    openai_response_file = project_root / 'web' / 'openai_response.json'
     
     print("Step 1: Parsing .vcf files...")
     vcf_data = parse_all_vcf_files(vcf_dir)
@@ -700,70 +695,11 @@ def extract_recommendations(
     
     print(f"  Total unique recommendations: {len(unique_recs)}")
     
-    # Save backup before any enhancement
+    # Save backup
     print(f"\nSaving backup to {backup_file}...")
     output_file.parent.mkdir(parents=True, exist_ok=True)
     with open(backup_file, 'w', encoding='utf-8') as f:
         json.dump(unique_recs, f, ensure_ascii=False, indent=2)
-    
-    # OpenAI enhancement (if requested)
-    if use_openai:
-        print("\n" + "="*50)
-        print(f"OpenAI Enhancement (Model: {openai_model})")
-        print("="*50)
-        
-        try:
-            from enhance_recommendations import enhance_recommendations_with_openai, enhance_null_services_with_openai
-            
-            # First pass: Full enhancement
-            print("\nFirst pass: Full enhancement of all recommendations...")
-            result = enhance_recommendations_with_openai(unique_recs, all_messages, model=openai_model)
-            
-            if result['success']:
-                print("✓ First pass completed!")
-                unique_recs = result['enhanced']
-                
-                # Count null services before second pass
-                null_count_before = sum(1 for r in unique_recs if not r.get('service'))
-                
-                # Second pass: Extract services for null entries with extended context
-                if null_count_before > 0:
-                    print("\n" + "-"*50)
-                    print("Second pass: Extracting services for null entries...")
-                    print("-"*50)
-                    result2 = enhance_null_services_with_openai(unique_recs, all_messages, model=openai_model)
-                    
-                    if result2['success']:
-                        unique_recs = result2['enhanced']
-                        null_count_after = sum(1 for r in unique_recs if not r.get('service'))
-                        print(f"\n✓ Second pass completed!")
-                        print(f"  Extracted services for {null_count_before - null_count_after} recommendations")
-                    else:
-                        print(f"⚠ Second pass failed: {result2['error']}")
-                        print("  Continuing with first pass results.")
-                
-                # Save OpenAI response for debugging
-                with open(openai_response_file, 'w', encoding='utf-8') as f:
-                    json.dump({
-                        'first_pass_response': result.get('raw_response'),
-                        'second_pass_response': result2.get('raw_response') if 'result2' in locals() else None,
-                        'timestamp': datetime.now().isoformat(),
-                        'model': openai_model,
-                        'recommendations_count': len(unique_recs),
-                        'null_services_before': null_count_before if 'null_count_before' in locals() else None,
-                        'null_services_after': null_count_after if 'null_count_after' in locals() else None
-                    }, f, ensure_ascii=False, indent=2)
-                print(f"  Saved OpenAI response to {openai_response_file}")
-            else:
-                print(f"⚠ OpenAI enhancement failed: {result['error']}")
-                print("  Using original recommendations without enhancement.")
-                unique_recs = result['enhanced']  # This will be the original list
-        except ImportError:
-            print("⚠ OpenAI package not installed. Skipping enhancement.")
-            print("  Install with: pip install openai")
-        except Exception as e:
-            print(f"⚠ Error during OpenAI enhancement: {e}")
-            print("  Using original recommendations without enhancement.")
     
     print(f"\nWriting output to {output_file}...")
     # Ensure output directory exists
@@ -787,19 +723,10 @@ def main():
     """Main extraction function (CLI entry point)."""
     # Parse command-line arguments
     parser = argparse.ArgumentParser(description='Extract recommendations from WhatsApp chats and VCF files')
-    parser.add_argument('--use-openai', action='store_true', 
-                       help='Use OpenAI API to enhance recommendations (requires OPENAI_API_KEY env var)')
-    parser.add_argument('--openai-model', type=str, default='gpt-4o-mini',
-                       choices=['gpt-5', 'gpt-4.1', 'o4-mini', 'gpt-4o-mini', 'gpt-4o', 'gpt-3.5-turbo'],
-                       help='OpenAI model to use for enhancement (default: gpt-4o-mini). Newer models: gpt-5, gpt-4.1, o4-mini')
     args = parser.parse_args()
     
     # Call the core extraction function
-    extract_recommendations(
-        use_openai=args.use_openai,
-        openai_model=args.openai_model,
-        run_analysis=True
-    )
+    extract_recommendations(run_analysis=True)
 
 
 if __name__ == '__main__':

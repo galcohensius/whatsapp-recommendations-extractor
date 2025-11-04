@@ -5,9 +5,11 @@ Main entry point for WhatsApp Recommendations Extractor
 
 This script orchestrates the entire workflow:
 1. Extract recommendations from data files
-2. (Optional) Fix/clean recommendations
-3. (Optional) Analyze recommendations
-4. Display summary and next steps
+2. (Optional) AI Enhancement - Enhance recommendations with OpenAI (--use-openai)
+3. (Optional) Data cleanup - Fix/clean recommendations
+4. (Optional) Analysis - Analyze recommendations for issues
+5. (Optional) Deployment - Deploy to GitHub Pages (--deploy)
+6. Display summary and next steps
 """
 
 import sys
@@ -18,21 +20,19 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent / 'src'))
 
 
-def run_extraction(use_openai: bool = False, openai_model: str = 'gpt-4o-mini'):
+def run_extraction():
     """Run the main extraction script."""
     print("="*70)
     print("STEP 1: EXTRACTING RECOMMENDATIONS")
     print("="*70)
     
-    from extract_recommendations import extract_recommendations
+    from extract_txt_and_vcf import extract_recommendations
     from pathlib import Path
     
     project_root = Path(__file__).parent
     
     # Call the core extraction function (skip analysis, will run after fixes)
     extract_recommendations(
-        use_openai=use_openai,
-        openai_model=openai_model,
         project_root=project_root,
         run_analysis=False  # Skip analysis here, will run after fixes
     )
@@ -42,16 +42,105 @@ def run_extraction(use_openai: bool = False, openai_model: str = 'gpt-4o-mini'):
     print("="*70)
 
 
+def run_ai_enhancement(openai_model: str = 'gpt-4o-mini'):
+    """Run AI enhancement using OpenAI API."""
+    print("\n" + "="*70)
+    print("STEP 2: AI ENHANCEMENT")
+    print("="*70)
+    
+    from ai_enhance_recommendations import enhance_recommendations_with_openai, enhance_null_services_with_openai
+    from extract_txt_and_vcf import parse_all_chat_files
+    from pathlib import Path
+    import json
+    from datetime import datetime
+    
+    project_root = Path(__file__).parent
+    input_file = project_root / 'web' / 'recommendations.json'
+    openai_response_file = project_root / 'web' / 'openai_response.json'
+    
+    if not input_file.exists():
+        print(f"⚠️  {input_file} not found. Skipping AI enhancement.")
+        return
+    
+    # Load recommendations
+    with open(input_file, 'r', encoding='utf-8') as f:
+        recommendations = json.load(f)
+    
+    # Load messages for context
+    text_dir = project_root / 'data' / 'txt'
+    all_messages = parse_all_chat_files(text_dir)
+    
+    print(f"Enhancing {len(recommendations)} recommendations using {openai_model}...")
+    
+    try:
+        # First pass: Full enhancement
+        print("\nFirst pass: Full enhancement of all recommendations...")
+        result = enhance_recommendations_with_openai(recommendations, all_messages, model=openai_model)
+        
+        if result['success']:
+            print("✓ First pass completed!")
+            recommendations = result['enhanced']
+            
+            # Count null services before second pass
+            null_count_before = sum(1 for r in recommendations if not r.get('service'))
+            
+            # Second pass: Extract services for null entries with extended context
+            if null_count_before > 0:
+                print("\n" + "-"*50)
+                print("Second pass: Extracting services for null entries...")
+                print("-"*50)
+                result2 = enhance_null_services_with_openai(recommendations, all_messages, model=openai_model)
+                
+                if result2['success']:
+                    recommendations = result2['enhanced']
+                    null_count_after = sum(1 for r in recommendations if not r.get('service'))
+                    print(f"\n✓ Second pass completed!")
+                    print(f"  Extracted services for {null_count_before - null_count_after} recommendations")
+                else:
+                    print(f"⚠ Second pass failed: {result2['error']}")
+                    print("  Continuing with first pass results.")
+            
+            # Save enhanced recommendations
+            with open(input_file, 'w', encoding='utf-8') as f:
+                json.dump(recommendations, f, ensure_ascii=False, indent=2)
+            
+            # Save OpenAI response for debugging
+            with open(openai_response_file, 'w', encoding='utf-8') as f:
+                json.dump({
+                    'first_pass_response': result.get('raw_response'),
+                    'second_pass_response': result2.get('raw_response') if 'result2' in locals() else None,
+                    'timestamp': datetime.now().isoformat(),
+                    'model': openai_model,
+                    'recommendations_count': len(recommendations),
+                    'null_services_before': null_count_before if 'null_count_before' in locals() else None,
+                    'null_services_after': null_count_after if 'null_count_after' in locals() else None
+                }, f, ensure_ascii=False, indent=2)
+            print(f"  Saved OpenAI response to {openai_response_file}")
+        else:
+            print(f"⚠ OpenAI enhancement failed: {result['error']}")
+            print("  Using original recommendations without enhancement.")
+    except ImportError:
+        print("⚠ OpenAI package not installed. Skipping enhancement.")
+        print("  Install with: pip install openai")
+    except Exception as e:
+        print(f"⚠ Error during OpenAI enhancement: {e}")
+        print("  Using original recommendations without enhancement.")
+    
+    print("\n" + "="*70)
+    print("✓ AI Enhancement complete!")
+    print("="*70)
+
+
 def run_fix(fix_after_extraction: bool = True):
     """Run the fix/cleanup script."""
     if not fix_after_extraction:
         return
     
     print("\n" + "="*70)
-    print("STEP 2: FIXING RECOMMENDATIONS")
+    print("STEP 3: DATA CLEANUP")
     print("="*70)
     
-    from fix_recommendations import fix_recommendations
+    from data_cleanup import fix_recommendations
     
     project_root = Path(__file__).parent
     input_file = project_root / 'web' / 'recommendations.json'
@@ -73,7 +162,7 @@ def run_analysis(analyze_after: bool = True):
         return
     
     print("\n" + "="*70)
-    print("STEP 3: ANALYZING RECOMMENDATIONS")
+    print("STEP 4: ANALYZING RECOMMENDATIONS")
     print("="*70)
     
     from analyze_recommendations import analyze_recommendations
@@ -95,7 +184,7 @@ def run_analysis(analyze_after: bool = True):
 def run_deployment(auto_commit: bool = False):
     """Run the deployment script to update GitHub Pages."""
     print("\n" + "="*70)
-    print("STEP 4: DEPLOYING TO GITHUB PAGES")
+    print("STEP 5: DEPLOYING TO GITHUB PAGES")
     print("="*70)
     
     from pathlib import Path
@@ -250,21 +339,22 @@ Examples:
     print("\n🚀 Starting workflow...")
     
     # Step 1: Extraction
-    run_extraction(
-        use_openai=args.use_openai,
-        openai_model=args.openai_model
-    )
+    run_extraction()
     
-    # Step 2: Fix (if not skipped)
+    # Step 2: AI Enhancement (if requested)
+    if args.use_openai:
+        run_ai_enhancement(openai_model=args.openai_model)
+    
+    # Step 3: Fix (if not skipped)
     run_fix(fix_after_extraction=not args.skip_fix)
     
-    # Step 3: Analysis (if not skipped)
+    # Step 4: Analysis (if not skipped)
     # Note: Analysis is already run inside extract_recommendations automatically
     # This step is for when you want to re-analyze after fixes
     if not args.skip_analysis:
         run_analysis(analyze_after=True)
     
-    # Step 4: Deploy (if requested)
+    # Step 5: Deploy (if requested)
     deployed = False
     if args.deploy:
         run_deployment(auto_commit=args.auto_commit)

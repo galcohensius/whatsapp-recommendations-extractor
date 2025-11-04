@@ -16,7 +16,7 @@ from typing import Dict, List, Optional
 
 # Add src directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
-from extract_recommendations import is_valid_name
+from extract_txt_and_vcf import is_valid_name
 
 
 def clean_service_text(service: str) -> str:
