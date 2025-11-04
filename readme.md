@@ -24,23 +24,54 @@ This will:
 - Parse WhatsApp chat from `data/txt/`
 - Generate `web/recommendations.json`
 
-### 2. Clean Up Recommendations
+### 2. Main Workflow (Recommended)
 
-If you need to clean up invalid entries (e.g., URL parameters captured as names):
+Use the main script for the complete workflow:
 
 ```bash
-python src/cleanup_recommendations.py
+# Run full workflow (extract, fix, analyze)
+python main.py
+
+# With OpenAI enhancement
+python main.py --use-openai
+
+# Deploy to GitHub Pages after extraction
+python main.py --deploy
 ```
+
+See `python main.py --help` for all options.
 
 ## Running the Web Interface
 
-To view the interactive web interface, you need to run a local server (the page loads data from `recommendations.json`).
+### Local Viewing
+
+To view the interactive web interface locally, run a local server:
 
 ```bash
 # From project root
+cd web
 python -m http.server 8000
 ```
-Then navigate to: `http://localhost:8000/web/`
+Then navigate to: `http://localhost:8000`
+
+### Public Deployment (GitHub Pages)
+
+To share the interface publicly via GitHub Pages:
+
+```bash
+# Run full workflow and deploy
+python main.py --deploy
+
+# Or deploy manually after extraction
+python scripts/deploy_to_gh_pages.py
+```
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed setup instructions.
+
+After deployment, your site will be available at:
+```
+https://<your-username>.github.io/<repository-name>/
+```
 
 ## Setup
 

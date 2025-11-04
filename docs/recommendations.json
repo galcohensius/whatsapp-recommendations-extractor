@@ -2,7 +2,7 @@
   {
     "name": "אופיר ארביב",
     "phone": "+972526646463",
-    "service": null,
+    "service": "איטום גגות",
     "date": "2024-01-01 12:26:00",
     "recommender": "+972 54-524-9028",
     "context": "אופיר ארביב\n+972526646463\nhttps://truecaller.com/search/il/+972526646463\n\nsent using Truecaller",
@@ -11,7 +11,7 @@
   {
     "name": "עידן פנסיון",
     "phone": "+972544369708",
-    "service": null,
+    "service": "פנסיון לכלבים",
     "date": "2024-02-29 09:54:00",
     "recommender": "+972 54-524-9028",
     "context": "עידן פנסיון\n+972544369708\nhttps://truecaller.com/search/il/+972544369708\n\nsent using Truecaller",
@@ -20,7 +20,7 @@
   {
     "name": "פנו",
     "phone": "09-8915000",
-    "service": null,
+    "service": "חשמלאי",
     "date": "2024-04-01 19:58:00",
     "recommender": "+972 54-232-2441",
     "context": "ם באיזור מרכז היישוב.\n\nתודה על שיתוף הפעולה ושמירתכם על החוק.\n\nנתקלתם במפגע? פנו למוקד היישובי בטל' 09-8915000 או בוואצאפ 0548915000.\n\nכצמן והמועצה",
@@ -29,7 +29,7 @@
   {
     "name": "Hanamaru",
     "phone": "09-882-8493",
-    "service": null,
+    "service": "מסעדה",
     "date": "2025-02-21 15:15:00",
     "recommender": "+972 54-321-5041",
     "context": "Hanamaru\n09-882-8493 https://g.co/kgs/nkNmLhJ",
@@ -56,7 +56,7 @@
   {
     "name": "טכני מכונות כביסה ניסן",
     "phone": "+97250-280-5015",
-    "service": null,
+    "service": "תיקון מכונות כביסה",
     "date": "2023-10-24 11:35:00",
     "recommender": "+972 52-831-6724",
     "context": "טכני מכונות כביסה ניסן.vcf (file attached)",
@@ -92,7 +92,7 @@
   {
     "name": "יניב מזגנים כפר יונה",
     "phone": "+97250-440-3456",
-    "service": null,
+    "service": "מזגנים",
     "date": "2023-10-30 11:50:00",
     "recommender": "+972 50-480-0039",
     "context": "יניב מזגנים כפר יונה.vcf (file attached)",
@@ -461,7 +461,7 @@
   {
     "name": "איילת השחר מצילת חתולים",
     "phone": "+97254-459-8286",
-    "service": null,
+    "service": "מצילת חתולים",
     "date": "2024-04-24 18:30:00",
     "recommender": "+972 52-379-1379",
     "context": "איילת השחר מצילת חתולים.vcf (file attached)",
@@ -479,7 +479,7 @@
   {
     "name": "נימר אלומיניום",
     "phone": "+97250-529-2151",
-    "service": null,
+    "service": "חלונות אלומיניום",
     "date": "2024-04-29 18:52:00",
     "recommender": "+972 50-644-4199",
     "context": "נימר אלומיניום.vcf (file attached)",
@@ -488,7 +488,7 @@
   {
     "name": "אפי המדביר",
     "phone": "+97254-462-3232",
-    "service": null,
+    "service": "מדביר",
     "date": "2024-04-29 19:00:00",
     "recommender": "+972 54-778-5829",
     "context": "אפי המדביר.vcf (file attached)",
@@ -497,7 +497,7 @@
   {
     "name": "משה אלומיניום",
     "phone": "+97250-781-1315",
-    "service": null,
+    "service": "אלומיניום",
     "date": "2024-04-30 14:57:00",
     "recommender": "+972 52-831-6724",
     "context": "משה אלומיניום.vcf (file attached)",
@@ -657,7 +657,7 @@
     "message_index": 1041
   },
   {
-    "name": "דוד מזגנים",
+    "name": "טכנאי מזגנים",
     "phone": "+97252-351-0295",
     "service": "טכנאי מזגנים",
     "date": "2024-07-04 21:16:00",

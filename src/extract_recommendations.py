@@ -509,21 +509,28 @@ def include_unmentioned_vcf_files(vcf_data: Dict, mentioned_filenames: set) -> L
     return recommendations
 
 
-def main():
-    """Main extraction function."""
-    # Parse command-line arguments
-    parser = argparse.ArgumentParser(description='Extract recommendations from WhatsApp chats and VCF files')
-    parser.add_argument('--use-openai', action='store_true', 
-                       help='Use OpenAI API to enhance recommendations (requires OPENAI_API_KEY env var)')
-    parser.add_argument('--openai-model', type=str, default='gpt-4o-mini',
-                       choices=['gpt-5', 'gpt-4.1', 'o4-mini', 'gpt-4o-mini', 'gpt-4o', 'gpt-3.5-turbo'],
-                       help='OpenAI model to use for enhancement (default: gpt-4o-mini). Newer models: gpt-5, gpt-4.1, o4-mini')
-    args = parser.parse_args()
+def extract_recommendations(
+    use_openai: bool = False,
+    openai_model: str = 'gpt-4o-mini',
+    project_root: Optional[Path] = None,
+    run_analysis: bool = True
+) -> List[Dict]:
+    """Extract recommendations from WhatsApp chats and VCF files.
     
-    # Get project root (parent of src/)
-    project_root = Path(__file__).parent.parent
+    Args:
+        use_openai: Whether to use OpenAI API for enhancement
+        openai_model: OpenAI model to use for enhancement
+        project_root: Project root directory (defaults to parent of src/)
+        run_analysis: Whether to run analysis at the end (default: True)
+    
+    Returns:
+        List of recommendation dictionaries
+    """
+    if project_root is None:
+        project_root = Path(__file__).parent.parent
+    
     vcf_dir = project_root / 'data' / 'vcf'
-    text_dir = project_root / 'data' / 'txt'  # Using 'txt' since that's where your file is
+    text_dir = project_root / 'data' / 'txt'
     output_file = project_root / 'web' / 'recommendations.json'
     backup_file = project_root / 'web' / 'recommendations_backup.json'
     openai_response_file = project_root / 'web' / 'openai_response.json'
@@ -551,21 +558,45 @@ def main():
     print("\nStep 6: Merging all recommendations...")
     all_recommendations = text_recs + vcf_mentions + unmentioned_vcf
     
-    # Remove exact duplicates (same name, phone, service)
-    seen = set()
+    # Remove duplicates (same name + phone, regardless of service)
+    # Normalize phone numbers for comparison (remove +, spaces, dashes)
+    import re as re_module
+    
+    seen = {}
     unique_recs = []
+    duplicates_removed = 0
+    
     for rec in all_recommendations:
-        key = (rec['name'], rec['phone'], rec.get('service'))
-        if key not in seen:
-            seen.add(key)
-            unique_recs.append(rec)
-        else:
-            # If duplicate but has more context, prefer the one with more info
-            existing = next(r for r in unique_recs if (r['name'], r['phone'], r.get('service')) == key)
-            if rec.get('context') and (not existing.get('context') or len(rec['context']) > len(existing.get('context', ''))):
+        name = rec.get('name', '').strip()
+        phone = rec.get('phone', '').strip()
+        phone_normalized = re_module.sub(r'[\s+\-()]', '', phone)
+        
+        # Use name + normalized phone as key (service can vary for same person)
+        key = (name.lower(), phone_normalized)
+        
+        if key in seen:
+            # Check if this one has more information
+            existing = seen[key]
+            existing_score = (
+                (1 if existing.get('service') else 0) +
+                (1 if existing.get('context') and len(existing.get('context', '')) > 20 else 0) +
+                (1 if existing.get('date') else 0)
+            )
+            new_score = (
+                (1 if rec.get('service') else 0) +
+                (1 if rec.get('context') and len(rec.get('context', '')) > 20 else 0) +
+                (1 if rec.get('date') else 0)
+            )
+            
+            if new_score > existing_score:
+                # Replace with better one
                 unique_recs.remove(existing)
                 unique_recs.append(rec)
-                continue
+                seen[key] = rec
+            duplicates_removed += 1
+        else:
+            seen[key] = rec
+            unique_recs.append(rec)
     
     print(f"  Total unique recommendations: {len(unique_recs)}")
     
@@ -576,15 +607,15 @@ def main():
         json.dump(unique_recs, f, ensure_ascii=False, indent=2)
     
     # OpenAI enhancement (if requested)
-    if args.use_openai:
+    if use_openai:
         print("\n" + "="*50)
-        print(f"OpenAI Enhancement (Model: {args.openai_model})")
+        print(f"OpenAI Enhancement (Model: {openai_model})")
         print("="*50)
         
         try:
             from enhance_recommendations import enhance_recommendations_with_openai
             
-            result = enhance_recommendations_with_openai(unique_recs, all_messages, model=args.openai_model)
+            result = enhance_recommendations_with_openai(unique_recs, all_messages, model=openai_model)
             
             if result['success']:
                 print("✓ OpenAI enhancement successful!")
@@ -595,7 +626,7 @@ def main():
                     json.dump({
                         'raw_response': result['raw_response'],
                         'timestamp': datetime.now().isoformat(),
-                        'model': args.openai_model,
+                        'model': openai_model,
                         'recommendations_count': len(unique_recs)
                     }, f, ensure_ascii=False, indent=2)
                 print(f"  Saved OpenAI response to {openai_response_file}")
@@ -618,11 +649,33 @@ def main():
     
     print(f"Done! Generated {output_file} with {len(unique_recs)} recommendations.")
     
-    # Analyze the output for potential issues
-    print("\n" + "="*50)
-    print("Analyzing recommendations for potential issues...")
-    print("="*50)
-    analyze_recommendations(output_file, verbose=True)
+    # Analyze the output for potential issues (if requested)
+    if run_analysis:
+        print("\n" + "="*50)
+        print("Analyzing recommendations for potential issues...")
+        print("="*50)
+        analyze_recommendations(output_file, verbose=True)
+    
+    return unique_recs
+
+
+def main():
+    """Main extraction function (CLI entry point)."""
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description='Extract recommendations from WhatsApp chats and VCF files')
+    parser.add_argument('--use-openai', action='store_true', 
+                       help='Use OpenAI API to enhance recommendations (requires OPENAI_API_KEY env var)')
+    parser.add_argument('--openai-model', type=str, default='gpt-4o-mini',
+                       choices=['gpt-5', 'gpt-4.1', 'o4-mini', 'gpt-4o-mini', 'gpt-4o', 'gpt-3.5-turbo'],
+                       help='OpenAI model to use for enhancement (default: gpt-4o-mini). Newer models: gpt-5, gpt-4.1, o4-mini')
+    args = parser.parse_args()
+    
+    # Call the core extraction function
+    extract_recommendations(
+        use_openai=args.use_openai,
+        openai_model=args.openai_model,
+        run_analysis=True
+    )
 
 
 if __name__ == '__main__':
