@@ -21,15 +21,83 @@ from analyze_recommendations import analyze_recommendations
 
 
 
+def extract_service_from_name(name: str) -> Optional[str]:
+    """Extract service from name field if it contains 'Name - Service' pattern.
+    
+    Examples:
+        'דויד - מתקין מזגנים' -> 'מתקין מזגנים'
+        'John - Plumber' -> 'Plumber'
+    """
+    if not name:
+        return None
+    
+    # Pattern: Name - Service (supports -, –, —, and variations)
+    patterns = [
+        r'^([^\-–—]+?)\s*[-–—]\s*(.+)$',  # Name - Service
+        r'^(.+?)\s*[-–—]\s*(.+)$',         # More flexible
+    ]
+    
+    for pattern in patterns:
+        match = re.match(pattern, name.strip())
+        if match:
+            name_part = match.group(1).strip()
+            service_part = match.group(2).strip()
+            
+            # Validate: service should be meaningful (at least 3 chars)
+            if len(service_part) >= 3 and len(name_part) >= 2:
+                return service_part
+    
+    return None
+
+
 def extract_service_from_filename(filename: str, name: Optional[str] = None) -> Optional[str]:
     """Intelligently extract service/category from filename.
     
-    Removes the person's name from filename and returns any remaining meaningful text
-    as the service description.
+    Handles patterns like:
+    - 'Name - Service.vcf' -> 'Service'
+    - 'Service - Name.vcf' -> 'Service'
+    - 'Name.vcf' (with name known) -> remaining text after removing name
     """
     filename_stem = Path(filename).stem  # Remove .vcf extension
     
-    # Remove the person's name from filename if provided
+    # First, try to detect "Name - Service" or "Service - Name" patterns
+    dash_patterns = [
+        r'^([^\-–—]+?)\s*[-–—]\s*(.+)$',  # Name - Service
+        r'^(.+?)\s*[-–—]\s*([^\-–—]+?)$',  # Service - Name
+    ]
+    
+    for pattern in dash_patterns:
+        match = re.match(pattern, filename_stem)
+        if match:
+            part1 = match.group(1).strip()
+            part2 = match.group(2).strip()
+            
+            # If we have the name, determine which part is the service
+            if name:
+                name_clean = name.strip().lower()
+                # Check which part matches the name
+                if part1.lower() == name_clean or part1.lower().startswith(name_clean[:3]):
+                    # part1 is name, part2 is service
+                    if len(part2) >= 3:
+                        return part2
+                elif part2.lower() == name_clean or part2.lower().startswith(name_clean[:3]):
+                    # part2 is name, part1 is service
+                    if len(part1) >= 3:
+                        return part1
+                else:
+                    # Can't match name, assume longer part is service
+                    if len(part1) >= 3 and len(part1) > len(part2):
+                        return part1
+                    elif len(part2) >= 3:
+                        return part2
+            else:
+                # No name provided, assume longer part is service
+                if len(part1) >= 3 and len(part1) > len(part2):
+                    return part1
+                elif len(part2) >= 3:
+                    return part2
+    
+    # Fallback: Remove the person's name from filename if provided
     text_to_search = filename_stem
     if name:
         # Try to remove name (might be in different positions)
@@ -85,8 +153,26 @@ def parse_vcf_file(vcf_path: Path) -> Optional[Dict[str, Optional[str]]]:
                     phone = phone.replace(' ', '-')
                 break
         
-        # Intelligently extract service from filename
-        service = extract_service_from_filename(vcf_path.name, name)
+        # Intelligently extract service:
+        # 1. First try from name field (e.g., "דויד - מתקין מזגנים")
+        service = None
+        if name:
+            service = extract_service_from_name(name)
+            # If service was extracted from name, clean the name
+            if service:
+                # Remove service part from name
+                name_clean_patterns = [
+                    r'^([^\-–—]+?)\s*[-–—]\s*.+$',  # Name - Service -> Name
+                ]
+                for pattern in name_clean_patterns:
+                    match = re.match(pattern, name)
+                    if match:
+                        name = match.group(1).strip()
+                        break
+        
+        # 2. If no service from name, try filename
+        if not service:
+            service = extract_service_from_filename(vcf_path.name, name)
         
         if name and phone:
             return {
@@ -406,6 +492,20 @@ def extract_text_recommendations(messages: List[Dict], vcf_data: Dict) -> List[D
             # Clean name (remove newlines, normalize whitespace)
             if name:
                 name = name.replace('\n', ' ').strip()
+                # Check if name contains service (e.g., "דויד - מתקין מזגנים")
+                service_from_name = extract_service_from_name(name)
+                if service_from_name and not service:
+                    # Use service from name if we don't have one from context
+                    service = service_from_name
+                    # Clean the name (remove service part)
+                    name_clean_patterns = [
+                        r'^([^\-–—]+?)\s*[-–—]\s*.+$',  # Name - Service -> Name
+                    ]
+                    for pattern in name_clean_patterns:
+                        match = re.match(pattern, name)
+                        if match:
+                            name = match.group(1).strip()
+                            break
                 # Validate name again after cleaning
                 if not is_valid_name(name):
                     name = None
@@ -613,21 +713,45 @@ def extract_recommendations(
         print("="*50)
         
         try:
-            from enhance_recommendations import enhance_recommendations_with_openai
+            from enhance_recommendations import enhance_recommendations_with_openai, enhance_null_services_with_openai
             
+            # First pass: Full enhancement
+            print("\nFirst pass: Full enhancement of all recommendations...")
             result = enhance_recommendations_with_openai(unique_recs, all_messages, model=openai_model)
             
             if result['success']:
-                print("✓ OpenAI enhancement successful!")
+                print("✓ First pass completed!")
                 unique_recs = result['enhanced']
+                
+                # Count null services before second pass
+                null_count_before = sum(1 for r in unique_recs if not r.get('service'))
+                
+                # Second pass: Extract services for null entries with extended context
+                if null_count_before > 0:
+                    print("\n" + "-"*50)
+                    print("Second pass: Extracting services for null entries...")
+                    print("-"*50)
+                    result2 = enhance_null_services_with_openai(unique_recs, all_messages, model=openai_model)
+                    
+                    if result2['success']:
+                        unique_recs = result2['enhanced']
+                        null_count_after = sum(1 for r in unique_recs if not r.get('service'))
+                        print(f"\n✓ Second pass completed!")
+                        print(f"  Extracted services for {null_count_before - null_count_after} recommendations")
+                    else:
+                        print(f"⚠ Second pass failed: {result2['error']}")
+                        print("  Continuing with first pass results.")
                 
                 # Save OpenAI response for debugging
                 with open(openai_response_file, 'w', encoding='utf-8') as f:
                     json.dump({
-                        'raw_response': result['raw_response'],
+                        'first_pass_response': result.get('raw_response'),
+                        'second_pass_response': result2.get('raw_response') if 'result2' in locals() else None,
                         'timestamp': datetime.now().isoformat(),
                         'model': openai_model,
-                        'recommendations_count': len(unique_recs)
+                        'recommendations_count': len(unique_recs),
+                        'null_services_before': null_count_before if 'null_count_before' in locals() else None,
+                        'null_services_after': null_count_after if 'null_count_after' in locals() else None
                     }, f, ensure_ascii=False, indent=2)
                 print(f"  Saved OpenAI response to {openai_response_file}")
             else:

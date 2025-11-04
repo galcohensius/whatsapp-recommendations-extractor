@@ -15,6 +15,65 @@ sys.path.insert(0, str(Path(__file__).parent))
 from extract_recommendations import get_full_context_for_recommendation
 
 
+def build_enhancement_prompt_for_null_services(recommendations: List[Dict], messages: List[Dict], context_window: int = 10) -> str:
+    """Build a focused prompt for OpenAI to extract services for recommendations with null service.
+    
+    Args:
+        recommendations: List of recommendation dictionaries with service=None
+        messages: List of all parsed messages for context lookup
+        context_window: Number of messages before/after to include (default: 10 for extended context)
+    
+    Returns:
+        Formatted prompt string for OpenAI
+    """
+    prompt_parts = [
+        "You are analyzing WhatsApp chat messages to extract service/business descriptions for recommendations.",
+        "",
+        "For each recommendation below that has service=null, extract the service from the chat context.",
+        "Focus ONLY on extracting the service field - all other fields are already correct.",
+        "",
+        "IMPORTANT:",
+        "- Return ALL recommendations in your response (even if unchanged)",
+        "- Only update the 'service' field for recommendations where service is null",
+        "- Use the exact same structure as input",
+        "- Keep all other fields (name, phone, date, recommender, context, message_index) exactly as provided",
+        "- If you cannot determine a service from context, leave it as null",
+        "",
+        "RECOMMENDATIONS TO ENHANCE (service=null):",
+        "="*80,
+    ]
+    
+    # Add each recommendation with extended context
+    for i, rec in enumerate(recommendations, 1):
+        prompt_parts.append(f"\n--- Recommendation {i}/{len(recommendations)} ---")
+        prompt_parts.append(f"Current data:")
+        prompt_parts.append(f"  Name: {rec.get('name', 'Unknown')}")
+        prompt_parts.append(f"  Phone: {rec.get('phone', 'N/A')}")
+        prompt_parts.append(f"  Service: null (NEEDS EXTRACTION)")
+        prompt_parts.append(f"  Date: {rec.get('date', 'N/A')}")
+        prompt_parts.append(f"  Recommender: {rec.get('recommender', 'N/A')}")
+        
+        # Add extended chat context (±10 messages)
+        full_context = get_full_context_for_recommendation(rec, messages, context_window=context_window)
+        prompt_parts.append(f"\nExtended chat context (±{context_window} messages):")
+        prompt_parts.append(full_context)
+        prompt_parts.append("")
+    
+    prompt_parts.append("="*80)
+    prompt_parts.append("")
+    prompt_parts.append("Return a JSON object with this structure:")
+    prompt_parts.append('{"recommendations": [/* array of recommendations with extracted services */]}')
+    prompt_parts.append("")
+    prompt_parts.append("Requirements:")
+    prompt_parts.append("- Return ALL recommendations in the same order")
+    prompt_parts.append("- ONLY update the 'service' field for entries where service was null")
+    prompt_parts.append("- Extract service from the extended context (e.g., 'מתקין מזגנים', 'חשמלאי', 'אינסטלטור')")
+    prompt_parts.append("- Keep all other fields exactly as provided")
+    prompt_parts.append("- If service cannot be determined, leave it as null")
+    
+    return "\n".join(prompt_parts)
+
+
 def build_enhancement_prompt(recommendations: List[Dict], messages: List[Dict], context_window: int = 5) -> str:
     """Build a comprehensive prompt for OpenAI to enhance all recommendations.
     
@@ -283,6 +342,224 @@ def enhance_recommendations_with_openai(
         return {
             'enhanced': all_enhanced,
             'raw_response': json.dumps(all_raw_responses, ensure_ascii=False, indent=2),  # Store all responses
+            'success': True,
+            'error': None
+        }
+        
+    except Exception as e:
+        return {
+            'enhanced': recommendations,
+            'raw_response': None,
+            'success': False,
+            'error': f'OpenAI API error: {str(e)}'
+        }
+
+
+def enhance_null_services_with_openai(
+    recommendations: List[Dict], 
+    messages: List[Dict],
+    model: str = "gpt-4o-mini",
+    api_key: Optional[str] = None,
+    batch_size: int = 50  # Smaller batches for extended context
+) -> Dict:
+    """Second pass: Enhance only recommendations with service=null using extended context (±10 messages).
+    
+    Args:
+        recommendations: List of recommendation dictionaries (only those with service=None will be processed)
+        messages: List of all parsed messages for context lookup
+        model: OpenAI model to use (default: gpt-4o-mini)
+        api_key: OpenAI API key (if None, uses OPENAI_API_KEY env var)
+        batch_size: Number of recommendations to process per batch (default: 50, smaller due to extended context)
+    
+    Returns:
+        Dictionary with:
+            - 'enhanced': List of recommendations with extracted services (only service field updated)
+            - 'raw_response': Raw OpenAI response text
+            - 'success': Boolean indicating if enhancement succeeded
+            - 'error': Error message if failed
+    """
+    # Filter to only null services
+    null_service_recs = [rec for rec in recommendations if not rec.get('service')]
+    
+    if not null_service_recs:
+        print("\n  No recommendations with null service found. Skipping second pass.")
+        return {
+            'enhanced': recommendations,
+            'raw_response': None,
+            'success': True,
+            'error': None
+        }
+    
+    print(f"\n  Second pass: Extracting services for {len(null_service_recs)} recommendations with null service...")
+    print(f"    Using extended context (±10 messages per recommendation)")
+    
+    # Get API key (same logic as main enhancement function)
+    if api_key is None:
+        project_root = Path(__file__).parent.parent
+        api_key_file = project_root / 'api_key.txt'
+        
+        if api_key_file.exists():
+            try:
+                api_key = api_key_file.read_text(encoding='utf-8').strip()
+            except Exception:
+                api_key = None
+        
+        if not api_key:
+            api_key = os.getenv('OPENAI_API_KEY')
+        
+        if not api_key:
+            key_files = [
+                project_root / '.env',
+                Path.home() / '.openai_key'
+            ]
+            
+            for key_file in key_files:
+                if key_file.exists():
+                    try:
+                        api_key = key_file.read_text(encoding='utf-8').strip()
+                        if key_file.name == '.env' and 'OPENAI_API_KEY=' in api_key:
+                            api_key = api_key.split('OPENAI_API_KEY=', 1)[1].split('\n', 1)[0].strip().strip('"').strip("'")
+                        if api_key:
+                            break
+                    except Exception:
+                        continue
+    
+    if not api_key:
+        return {
+            'enhanced': recommendations,
+            'raw_response': None,
+            'success': False,
+            'error': 'OPENAI_API_KEY not found. Set it as environment variable or in api_key.txt/.env file'
+        }
+    
+    try:
+        client = OpenAI(api_key=api_key)
+        
+        # Model context limits (approximate)
+        context_limits = {
+            'gpt-4o-mini': 128000,
+            'gpt-4o': 128000,
+            'gpt-3.5-turbo': 16385,
+            'gpt-5': 200000,
+            'gpt-4.1': 128000,
+            'o4-mini': 128000
+        }
+        
+        max_tokens = context_limits.get(model, 128000)
+        # Reserve tokens for response (estimate ~300 tokens per recommendation for extended context)
+        safe_input_tokens = max_tokens - (batch_size * 300) - 1000  # Safety margin
+        
+        # Split into batches
+        all_enhanced_null = []
+        all_raw_responses = []
+        total_batches = (len(null_service_recs) + batch_size - 1) // batch_size
+        
+        print(f"    Processing {len(null_service_recs)} recommendations in {total_batches} batches...")
+        
+        for batch_num in range(total_batches):
+            start_idx = batch_num * batch_size
+            end_idx = min(start_idx + batch_size, len(null_service_recs))
+            batch = null_service_recs[start_idx:end_idx]
+            
+            print(f"      Batch {batch_num + 1}/{total_batches} ({len(batch)} recommendations)...")
+            
+            # Build prompt with extended context (±10 messages)
+            prompt = build_enhancement_prompt_for_null_services(batch, messages, context_window=10)
+            prompt_tokens = estimate_tokens(prompt)
+            
+            print(f"        Prompt: ~{prompt_tokens:,} tokens")
+            
+            if prompt_tokens > safe_input_tokens:
+                print(f"        ⚠ Warning: Prompt size ({prompt_tokens:,} tokens) exceeds safe limit ({safe_input_tokens:,} tokens)")
+            
+            try:
+                response = client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "You are a helpful assistant that extracts service descriptions from chat messages. Always return valid JSON arrays. Only update the 'service' field for entries where service is null."
+                        },
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ],
+                    response_format={"type": "json_object"},
+                    temperature=0.3,
+                    timeout=600.0
+                )
+                
+                raw_response = response.choices[0].message.content
+                
+                if raw_response is None:
+                    print(f"        ⚠ Batch {batch_num + 1} failed: OpenAI API returned empty response")
+                    all_enhanced_null.extend(batch)
+                    continue
+                
+                all_raw_responses.append(raw_response)
+                
+                # Parse JSON response
+                response_data = json.loads(raw_response)
+                
+                # Extract recommendations array
+                if isinstance(response_data, dict):
+                    if 'recommendations' in response_data:
+                        enhanced = response_data['recommendations']
+                    elif 'enhanced' in response_data:
+                        enhanced = response_data['enhanced']
+                    else:
+                        enhanced = list(response_data.values()) if response_data else []
+                elif isinstance(response_data, list):
+                    enhanced = response_data
+                else:
+                    enhanced = []
+                
+                # Validate count
+                if len(enhanced) != len(batch):
+                    print(f"        ⚠ Warning: Expected {len(batch)} recommendations, got {len(enhanced)}")
+                    # Use original batch if count mismatch
+                    all_enhanced_null.extend(batch)
+                else:
+                    # Merge: update only service field, keep all else
+                    for i, orig_rec in enumerate(batch):
+                        enhanced_rec = enhanced[i] if i < len(enhanced) else None
+                        if enhanced_rec and enhanced_rec.get('service'):
+                            # Update service only
+                            orig_rec['service'] = enhanced_rec['service']
+                        all_enhanced_null.append(orig_rec)
+                
+                print(f"        ✓ Batch {batch_num + 1} completed")
+                
+            except json.JSONDecodeError as e:
+                print(f"        ⚠ Batch {batch_num + 1} failed: JSON parse error")
+                all_enhanced_null.extend(batch)
+            except Exception as e:
+                print(f"        ⚠ Batch {batch_num + 1} failed: {str(e)}")
+                all_enhanced_null.extend(batch)
+        
+        # Merge back into original recommendations list
+        # Create a map of null service recs by phone+name for quick lookup
+        null_service_map = {}
+        for rec in all_enhanced_null:
+            key = (rec.get('phone', ''), rec.get('name', ''))
+            null_service_map[key] = rec
+        
+        # Update original recommendations
+        updated_recommendations = []
+        for rec in recommendations:
+            if not rec.get('service'):
+                key = (rec.get('phone', ''), rec.get('name', ''))
+                if key in null_service_map:
+                    # Update service from enhanced version
+                    rec['service'] = null_service_map[key].get('service')
+            updated_recommendations.append(rec)
+        
+        print(f"    ✓ Extracted services for {sum(1 for r in updated_recommendations if r.get('service')) - sum(1 for r in recommendations if r.get('service'))} recommendations")
+        
+        return {
+            'enhanced': updated_recommendations,
+            'raw_response': json.dumps(all_raw_responses, ensure_ascii=False, indent=2),
             'success': True,
             'error': None
         }
