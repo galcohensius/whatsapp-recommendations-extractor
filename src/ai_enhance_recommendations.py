@@ -32,13 +32,15 @@ def build_enhancement_prompt_for_null_services(recommendations: List[Dict], mess
         "For each recommendation below that has service=null, extract the OCCUPATION from the chat context.",
         "The 'service' field should contain the person's OCCUPATION (e.g., 'מתקין מזגנים', 'חשמלאי', 'אינסטלטור', 'רופא', 'טכנאי מחשבים').",
         "Any other important information (quality of work, location hints, pricing, etc.) should be placed in the 'context' field.",
-        "Enhance the 'recommender' field: Extract the recommender's NAME from the chat context and format as 'Name - Phone' (e.g., 'דוד כהן - 050-1234567').",
+        "Enhance the 'recommender' field: The recommender is the SENDER of the message that attached this VCF file (their phone number).",
+        "  Only update it to 'Name - Phone' format if you can find the NAME associated with that specific phone number in the chat context.",
+        "  Do NOT guess names - if you cannot find the name for that phone number, keep the existing recommender value as-is.",
         "",
         "IMPORTANT:",
         "- Return ALL recommendations in your response (even if unchanged)",
         "- Only update the 'service' field (with OCCUPATION) for recommendations where service is null",
         "- Update the 'context' field with any additional relevant information from the chat (work quality, location, pricing, etc.)",
-        "- Update the 'recommender' field: Extract recommender's NAME from chat context and format as 'Name - Phone' when name is available",
+        "- Update the 'recommender' field: Only if you can identify the NAME for the recommender's phone number in the chat, format as 'Name - Phone'",
         "- Use the exact same structure as input",
         "- Keep all other fields (name, phone, date, message_index) exactly as provided",
         "- If you cannot determine an occupation from context, leave service as null",
@@ -73,8 +75,9 @@ def build_enhancement_prompt_for_null_services(recommendations: List[Dict], mess
     prompt_parts.append("- ONLY update the 'service' field (with OCCUPATION) for entries where service was null")
     prompt_parts.append("- Extract OCCUPATION from the extended context (e.g., 'מתקין מזגנים', 'חשמלאי', 'אינסטלטור', 'רופא', 'טכנאי מחשבים', 'גנן', 'מתווך')")
     prompt_parts.append("- Update 'context' field with additional relevant information (work quality, location, pricing, specializations, etc.)")
-    prompt_parts.append("- Update 'recommender' field: Extract recommender's NAME from chat context and format as 'Name - Phone' (e.g., 'דוד כהן - 050-1234567')")
-    prompt_parts.append("- If recommender name cannot be found, keep existing recommender value")
+    prompt_parts.append("- Update 'recommender' field: The recommender is the SENDER of the message (the phone number already in the field).")
+    prompt_parts.append("  Only update to 'Name - Phone' format if you can find the NAME associated with that specific phone number in the chat context.")
+    prompt_parts.append("  Do NOT guess names - if you cannot find the name for that phone number, keep the existing recommender value as-is.")
     prompt_parts.append("- Keep all other fields exactly as provided")
     prompt_parts.append("- If occupation cannot be determined, leave service as null")
     
@@ -99,7 +102,7 @@ def build_enhancement_prompt(recommendations: List[Dict], messages: List[Dict], 
         "1. Extract OCCUPATION in the 'service' field ONLY when service is null (do NOT change existing service values)",
         "2. The 'service' field should contain the person's OCCUPATION (e.g., 'מתקין מזגנים', 'חשמלאי', 'אינסטלטור', 'רופא', 'טכנאי מחשבים')",
         "3. For ALL entries (regardless of service value): Place other important information in the 'context' field (work quality, location, pricing, specializations, experience level, etc.)",
-        "4. For ALL entries (regardless of service value): Enhance the 'recommender' field - Extract the recommender's NAME from the chat context and format as 'Name - Phone' (e.g., 'דוד כהן - 050-1234567')",
+        "4. For ALL entries (regardless of service value): Enhance the 'recommender' field - The recommender is the SENDER of the message (their phone number is already in the field). Only update to 'Name - Phone' format if you can find the NAME associated with that specific phone number in the chat context. Do NOT guess names.",
         "5. Improve/correct existing fields (name, context, recommender) - but do NOT change existing service values",
         "6. Preserve valid existing data (especially existing service values)",
         "7. All responses must be in valid JSON format",
@@ -146,8 +149,9 @@ def build_enhancement_prompt(recommendations: List[Dict], messages: List[Dict], 
     prompt_parts.append("- Extract OCCUPATION in 'service' field ONLY when service is null (do NOT update existing service values)")
     prompt_parts.append("- 'service' should contain only the occupation (e.g., 'מתקין מזגנים', 'חשמלאי', 'רופא')")
     prompt_parts.append("- For ALL entries (regardless of service value): Update 'context' field with additional relevant information (work quality, location, pricing, specializations, experience, etc.)")
-    prompt_parts.append("- For ALL entries (regardless of service value): Enhance 'recommender' field - Extract the recommender's NAME from chat context and format as 'Name - Phone' (e.g., 'דוד כהן - 050-1234567')")
-    prompt_parts.append("- If recommender name cannot be found in context, keep the existing recommender value")
+    prompt_parts.append("- For ALL entries (regardless of service value): Enhance 'recommender' field - The recommender is the SENDER of the message (the phone number already in the field).")
+    prompt_parts.append("  Only update to 'Name - Phone' format if you can find the NAME associated with that specific phone number in the chat context.")
+    prompt_parts.append("  Do NOT guess names - if you cannot find the name for that phone number, keep the existing recommender value as-is.")
     prompt_parts.append("- Improve names if they are 'Unknown' or clearly wrong")
     prompt_parts.append("- Preserve all valid existing data (phone, date, message_index)")
     prompt_parts.append("- Keep phone numbers exactly as provided")
@@ -287,7 +291,7 @@ def enhance_recommendations_with_openai(
                     messages=[
                         {
                             "role": "system",
-                            "content": "You are a helpful assistant that extracts and enhances business recommendations from chat messages. IMPORTANT: Only update the 'service' field when it is null - do NOT change existing service values. For ALL entries (regardless of service value), update the 'context' field with additional relevant information and enhance the 'recommender' field by formatting as 'Name - Phone' when the name can be extracted. Always return valid JSON arrays."
+                            "content": "You are a helpful assistant that extracts and enhances business recommendations from chat messages. IMPORTANT: Only update the 'service' field when it is null - do NOT change existing service values. For ALL entries (regardless of service value), update the 'context' field with additional relevant information. For the 'recommender' field: The recommender is the SENDER of the message (their phone number is already in the field). Only update to 'Name - Phone' format if you can find the NAME associated with that specific phone number in the chat context. Do NOT guess names - if you cannot find the name, keep the existing recommender value. Always return valid JSON arrays."
                         },
                         {
                             "role": "user",
@@ -496,7 +500,7 @@ def enhance_null_services_with_openai(
                     messages=[
                         {
                             "role": "system",
-                            "content": "You are a helpful assistant that extracts OCCUPATIONS from chat messages. The 'service' field should contain the person's OCCUPATION. Other relevant details should go in the 'context' field. The 'recommender' field should be formatted as 'Name - Phone' when the recommender's name can be extracted. Always return valid JSON arrays. Only update the 'service', 'context', and 'recommender' fields for entries where service is null."
+                            "content": "You are a helpful assistant that extracts OCCUPATIONS from chat messages. The 'service' field should contain the person's OCCUPATION. Other relevant details should go in the 'context' field. For the 'recommender' field: The recommender is the SENDER of the message (their phone number is already in the field). Only update to 'Name - Phone' format if you can find the NAME associated with that specific phone number in the chat context. Do NOT guess names - if you cannot find the name, keep the existing recommender value. Always return valid JSON arrays. Only update the 'service', 'context', and 'recommender' fields for entries where service is null."
                         },
                         {
                             "role": "user",
@@ -595,13 +599,26 @@ def enhance_null_services_with_openai(
                             enhanced_recommender = get_field(enhanced_rec, 'recommender') or enhanced_rec.get('recommender', '')
                             orig_recommender = orig_rec.get('recommender', '')
                             if enhanced_recommender and enhanced_recommender != orig_recommender:
-                                # Check if enhanced has name format (contains ' - ')
-                                if ' - ' in enhanced_recommender or (len(enhanced_recommender) > len(orig_recommender) and orig_recommender):
-                                    # Enhanced version has name, use it
-                                    orig_rec['recommender'] = enhanced_recommender
+                                # Only update if we have a valid name (not a default/guess)
+                                # Check if enhanced has "Name - Phone" format
+                                if ' - ' in enhanced_recommender:
+                                    parts = enhanced_recommender.split(' - ', 1)
+                                    if len(parts) == 2:
+                                        name_part = parts[0].strip()
+                                        phone_part = parts[1].strip()
+                                        # Skip if name is a known default (user's own name)
+                                        default_names = ['גאל כהנסיוס', 'gal cohensius', 'Gal Cohensius', 'GAL COHENSIUS', 
+                                                       'Unknown', 'unknown', 'UNKNOWN']
+                                        if name_part.lower() not in [n.lower() for n in default_names]:
+                                            # Valid name found, use it
+                                            orig_rec['recommender'] = enhanced_recommender
+                                        # If name is a default, preserve original phone number (don't replace with "גאל כהנסיוס - phone")
+                                        # Original recommender is already the sender phone number, so keep it
                                 elif not orig_recommender or orig_recommender == 'Unknown':
-                                    # No original recommender, use enhanced
-                                    orig_rec['recommender'] = enhanced_recommender
+                                    # No original recommender, use enhanced (but validate it's not a default)
+                                    default_names = ['גאל כהנסיוס', 'gal cohensius']
+                                    if enhanced_recommender.lower() not in [n.lower() for n in default_names]:
+                                        orig_rec['recommender'] = enhanced_recommender
                         all_enhanced_null.append(orig_rec)
                 
                 print(f"        ✓ Batch {batch_num + 1} completed")
@@ -620,6 +637,37 @@ def enhance_null_services_with_openai(
             key = (rec.get('phone', ''), rec.get('name', ''))
             null_service_map[key] = rec
         
+        # Helper function for case-insensitive field lookup
+        def get_field(rec, field_name):
+            """Get field value with case-insensitive lookup"""
+            if field_name in rec:
+                val = rec[field_name]
+                if val and val != 'None' and val != 'null':
+                    return val
+            capitalized = field_name.capitalize()
+            if capitalized in rec:
+                val = rec[capitalized]
+                if val and val != 'None' and val != 'null':
+                    return val
+            variations = {
+                'name': ['Name', 'NAME'],
+                'phone': ['Phone', 'PHONE'],
+                'service': ['Service', 'SERVICE'],
+                'recommender': ['Recommender', 'RECOMMENDER'],
+                'context': ['Context', 'CONTEXT'],
+                'date': ['Date', 'DATE']
+            }
+            if field_name.lower() in variations:
+                for var in variations[field_name.lower()]:
+                    if var in rec:
+                        val = rec[var]
+                        if val and val != 'None' and val != 'null':
+                            return val
+            return None
+        
+        # Count null services before update
+        null_before = sum(1 for r in recommendations if not r.get('service'))
+        
         # Update original recommendations
         updated_recommendations = []
         for rec in recommendations:
@@ -627,11 +675,12 @@ def enhance_null_services_with_openai(
                 key = (rec.get('phone', ''), rec.get('name', ''))
                 if key in null_service_map:
                     enhanced_rec = null_service_map[key]
-                    # Update service (occupation) from enhanced version
-                    if enhanced_rec.get('service'):
-                        rec['service'] = enhanced_rec.get('service')
+                    # Update service (occupation) from enhanced version using case-insensitive lookup
+                    service = get_field(enhanced_rec, 'service')
+                    if service:
+                        rec['service'] = service
                     # Update context with additional information
-                    enhanced_context = enhanced_rec.get('context', '')
+                    enhanced_context = get_field(enhanced_rec, 'context') or enhanced_rec.get('context', '')
                     orig_context = rec.get('context', '')
                     if enhanced_context and enhanced_context != orig_context:
                         if orig_context and orig_context.strip():
@@ -643,19 +692,35 @@ def enhance_null_services_with_openai(
                             # No original context, use enhanced
                             rec['context'] = enhanced_context
                     # Update recommender with name if enhanced version has it
-                    enhanced_recommender = enhanced_rec.get('recommender', '')
+                    enhanced_recommender = get_field(enhanced_rec, 'recommender') or enhanced_rec.get('recommender', '')
                     orig_recommender = rec.get('recommender', '')
                     if enhanced_recommender and enhanced_recommender != orig_recommender:
-                        # Check if enhanced has name format (contains ' - ')
-                        if ' - ' in enhanced_recommender or (len(enhanced_recommender) > len(orig_recommender) and orig_recommender):
-                            # Enhanced version has name, use it
-                            rec['recommender'] = enhanced_recommender
+                        # Only update if we have a valid name (not a default/guess)
+                        # Check if enhanced has "Name - Phone" format
+                        if ' - ' in enhanced_recommender:
+                            parts = enhanced_recommender.split(' - ', 1)
+                            if len(parts) == 2:
+                                name_part = parts[0].strip()
+                                phone_part = parts[1].strip()
+                                # Skip if name is a known default (user's own name)
+                                default_names = ['גאל כהנסיוס', 'gal cohensius', 'Gal Cohensius', 'GAL COHENSIUS', 
+                                               'Unknown', 'unknown', 'UNKNOWN']
+                                if name_part.lower() not in [n.lower() for n in default_names]:
+                                    # Valid name found, use it
+                                    rec['recommender'] = enhanced_recommender
+                                # If name is a default, preserve original phone number (don't replace with "גאל כהנסיוס - phone")
+                                # Original recommender is already the sender phone number, so keep it
                         elif not orig_recommender or orig_recommender == 'Unknown':
-                            # No original recommender, use enhanced
-                            rec['recommender'] = enhanced_recommender
+                            # No original recommender, use enhanced (but validate it's not a default)
+                            default_names = ['גאל כהנסיוס', 'gal cohensius']
+                            if enhanced_recommender.lower() not in [n.lower() for n in default_names]:
+                                rec['recommender'] = enhanced_recommender
             updated_recommendations.append(rec)
         
-        print(f"    ✓ Extracted services for {sum(1 for r in updated_recommendations if r.get('service')) - sum(1 for r in recommendations if r.get('service'))} recommendations")
+        # Count null services after update
+        null_after = sum(1 for r in updated_recommendations if not r.get('service'))
+        extracted_count = null_before - null_after
+        print(f"    ✓ Extracted services for {extracted_count} recommendations")
         
         return {
             'enhanced': updated_recommendations,
@@ -772,13 +837,26 @@ def merge_enhancements(original: List[Dict], enhanced: List[Dict]) -> List[Dict]
             enhanced_recommender = get_field(enhanced_rec, 'recommender') or enhanced_rec.get('recommender', '')
             orig_recommender = orig_rec.get('recommender', '')
             if enhanced_recommender and enhanced_recommender != orig_recommender:
-                # Check if enhanced has name format (contains ' - ' and looks like 'Name - Phone')
-                if ' - ' in enhanced_recommender or (len(enhanced_recommender) > len(orig_recommender) and orig_recommender):
-                    # Enhanced version has name, use it
-                    merged_rec['recommender'] = enhanced_recommender
+                # Only update if we have a valid name (not a default/guess)
+                # Check if enhanced has "Name - Phone" format
+                if ' - ' in enhanced_recommender:
+                    parts = enhanced_recommender.split(' - ', 1)
+                    if len(parts) == 2:
+                        name_part = parts[0].strip()
+                        phone_part = parts[1].strip()
+                        # Skip if name is a known default (user's own name)
+                        default_names = ['גאל כהנסיוס', 'gal cohensius', 'Gal Cohensius', 'GAL COHENSIUS', 
+                                       'Unknown', 'unknown', 'UNKNOWN']
+                        if name_part.lower() not in [n.lower() for n in default_names]:
+                            # Valid name found, use it
+                            merged_rec['recommender'] = enhanced_recommender
+                        # If name is a default, preserve original phone number (don't replace with "גאל כהנסיוס - phone")
+                        # Original recommender is already the sender phone number, so keep it
                 elif not orig_recommender or orig_recommender == 'Unknown':
-                    # No original recommender, use enhanced
-                    merged_rec['recommender'] = enhanced_recommender
+                    # No original recommender, use enhanced (but validate it's not a default)
+                    default_names = ['גאל כהנסיוס', 'gal cohensius']
+                    if enhanced_recommender.lower() not in [n.lower() for n in default_names]:
+                        merged_rec['recommender'] = enhanced_recommender
             
             merged.append(merged_rec)
         else:

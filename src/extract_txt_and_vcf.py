@@ -126,15 +126,66 @@ def extract_service_from_filename(filename: str, name: Optional[str] = None) -> 
     return None
 
 
+def extract_sender_phone(sender: str) -> str:
+    """Extract and normalize phone number from sender field.
+    
+    The sender field can be:
+    - A phone number (e.g., '+972 52-577-4739', '050-1234567')
+    - A contact name (if WhatsApp shows contact name)
+    - Something else
+    
+    Returns the normalized phone number if found, otherwise returns sender as-is.
+    """
+    # First, try to extract phone numbers from the sender field
+    phones = extract_phone_numbers(sender)
+    
+    # If we found a phone number, normalize and return it
+    if phones:
+        return normalize_phone(phones[0])
+    
+    # If sender itself looks like a phone number (starts with + or digits), normalize it
+    sender_clean = sender.strip()
+    if sender_clean.startswith('+') or (sender_clean and sender_clean[0].isdigit()):
+        normalized = normalize_phone(sender_clean)
+        # Check if normalized looks like a valid phone number
+        digits_only = re.sub(r'[^\d]', '', normalized)
+        if len(digits_only) >= 9:  # At least 9 digits for a valid phone number
+            return normalized
+    
+    # Otherwise, return sender as-is (might be a contact name)
+    return sender
+
+
 def parse_vcf_file(vcf_path: Path) -> Optional[Dict[str, Optional[str]]]:
     """Parse a .vcf file and extract name, phone, and infer service from filename."""
     try:
         with open(vcf_path, 'r', encoding='utf-8') as f:
             content = f.read()
         
-        # Extract name from FN field
+        # Extract name from FN field (preferred) or N field (fallback)
+        name = None
         name_match = re.search(r'FN:([^\r\n]+)', content)
-        name = name_match.group(1).strip() if name_match else None
+        if name_match:
+            name = name_match.group(1).strip()
+        else:
+            # Fallback: Try N: field (Name field - format: Family;Given;Additional;Prefix;Suffix)
+            n_match = re.search(r'N:([^\r\n]+)', content)
+            if n_match:
+                n_parts = n_match.group(1).strip().split(';')
+                # Combine parts (excluding empty parts) to form name
+                name_parts = [p for p in n_parts if p]
+                if name_parts:
+                    name = ' '.join(name_parts).strip()
+        
+        # If still no name, try to extract from filename as last resort
+        if not name:
+            filename_stem = vcf_path.stem
+            # Remove common patterns that aren't names
+            name = re.sub(r'\.vcf$', '', filename_stem, flags=re.IGNORECASE)
+            # Clean up: remove common service indicators
+            name = re.sub(r'\s*[-–—]\s*.*$', '', name).strip()  # Remove " - Service" part
+            if not name or len(name) < 2:
+                name = None
         
         # Extract phone from TEL fields (handle various formats)
         phone = None
@@ -145,12 +196,9 @@ def parse_vcf_file(vcf_path: Path) -> Optional[Dict[str, Optional[str]]]:
         for pattern in tel_patterns:
             phone_match = re.search(pattern, content)
             if phone_match:
-                phone = phone_match.group(1).strip()
-                # Clean up phone number
-                phone = re.sub(r'[^\d+\-]', '', phone)
-                if phone.startswith('+972'):
-                    # Normalize Israeli format
-                    phone = phone.replace(' ', '-')
+                phone_raw = phone_match.group(1).strip()
+                # Normalize phone number using utility function
+                phone = normalize_phone(phone_raw)
                 break
         
         # Intelligently extract service:
@@ -278,12 +326,19 @@ def parse_whatsapp_chat(chat_file: Path) -> List[Dict]:
         full_message = message_text + continuation
         full_message = full_message.rstrip('\n')
         
-        # Parse datetime
+        # Parse datetime - ensure we always get a date
+        date_iso = None
         try:
             datetime_obj = datetime.strptime(f"{date_str} {time_str}", "%d/%m/%Y %H:%M")
             date_iso = datetime_obj.strftime("%Y-%m-%d %H:%M:%S")
-        except:
-            date_iso = None
+        except ValueError:
+            # Try alternative date format (MM/DD/YYYY if DD/MM/YYYY fails)
+            try:
+                datetime_obj = datetime.strptime(f"{date_str} {time_str}", "%m/%d/%Y %H:%M")
+                date_iso = datetime_obj.strftime("%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                # If all parsing fails, use the raw date string as fallback
+                date_iso = f"{date_str} {time_str}"
         
         messages.append({
             'date': date_iso,
@@ -511,12 +566,15 @@ def extract_text_recommendations(messages: List[Dict], vcf_data: Dict) -> List[D
                     name = None
             
             if name or service:  # At least name or service to be a valid recommendation
+                # Extract and normalize recommender phone number from sender
+                recommender = extract_sender_phone(msg['sender'])
+                
                 recommendations.append({
                     'name': name or 'Unknown',
                     'phone': phone,
                     'service': service,
                     'date': msg['date'],
-                    'recommender': msg['sender'],
+                    'recommender': recommender,  # Normalized phone number or sender as-is
                     'context': context.strip(),
                     'message_index': idx  # Store message index for context lookup
                 })
@@ -569,12 +627,15 @@ def extract_vcf_mentions(messages: List[Dict], vcf_data: Dict) -> Tuple[List[Dic
                     # Prefer context service if it exists, otherwise use filename service
                     vcf_info['service'] = service_from_context
                 
+                # Extract and normalize recommender phone number from sender
+                recommender = extract_sender_phone(msg['sender'])
+                
                 recommendations.append({
                     'name': name,
                     'phone': vcf_info['phone'],
                     'service': vcf_info.get('service'),
                     'date': msg['date'],
-                    'recommender': msg['sender'],
+                    'recommender': recommender,  # Normalized phone number or sender as-is
                     'context': context.strip(),
                     'message_index': idx  # Store message index for context lookup
                 })
