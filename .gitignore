@@ -45,3 +45,7 @@ data/vcf/*
 !data/txt/.gitkeep
 !data/vcf/.gitkeep
 
+# OpenAI enhancement files
+web/recommendations_backup.json
+web/openai_response.json
+

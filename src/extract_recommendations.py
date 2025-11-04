@@ -9,6 +9,7 @@ import re
 import json
 import os
 import sys
+import argparse
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
@@ -423,9 +424,16 @@ def extract_text_recommendations(messages: List[Dict], vcf_data: Dict) -> List[D
     return recommendations
 
 
-def extract_vcf_mentions(messages: List[Dict], vcf_data: Dict) -> List[Dict]:
-    """Extract recommendations from .vcf file attachments mentioned in chat."""
+def extract_vcf_mentions(messages: List[Dict], vcf_data: Dict) -> Tuple[List[Dict], set]:
+    """Extract recommendations from .vcf file attachments mentioned in chat.
+    
+    Returns:
+        Tuple of (recommendations list, mentioned_filenames set)
+        The mentioned_filenames set includes ALL mentioned VCF files, even if they
+        were skipped due to validation failures. This prevents data loss.
+    """
     recommendations = []
+    mentioned_filenames = set()  # Track ALL mentioned files, even if skipped
     
     for idx, msg in enumerate(messages):
         text = msg['text']
@@ -439,13 +447,16 @@ def extract_vcf_mentions(messages: List[Dict], vcf_data: Dict) -> List[Dict]:
             vcf_key = vcf_filename.lower()
             
             if vcf_key in vcf_data:
+                # Track as mentioned BEFORE validation (prevents data loss)
+                mentioned_filenames.add(vcf_key)
+                
                 vcf_info = vcf_data[vcf_key]
                 
                 # Clean and validate name
                 name = vcf_info['name']
                 if name:
                     name = name.replace('\n', ' ').strip()
-                    # Skip personal contacts
+                    # Skip adding to recommendations if invalid, but still tracked as mentioned
                     if not is_valid_name(name):
                         continue
                 
@@ -468,7 +479,7 @@ def extract_vcf_mentions(messages: List[Dict], vcf_data: Dict) -> List[Dict]:
                     'message_index': idx  # Store message index for context lookup
                 })
     
-    return recommendations
+    return recommendations, mentioned_filenames
 
 
 def include_unmentioned_vcf_files(vcf_data: Dict, mentioned_filenames: set) -> List[Dict]:
@@ -500,11 +511,22 @@ def include_unmentioned_vcf_files(vcf_data: Dict, mentioned_filenames: set) -> L
 
 def main():
     """Main extraction function."""
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description='Extract recommendations from WhatsApp chats and VCF files')
+    parser.add_argument('--use-openai', action='store_true', 
+                       help='Use OpenAI API to enhance recommendations (requires OPENAI_API_KEY env var)')
+    parser.add_argument('--openai-model', type=str, default='gpt-4o-mini',
+                       choices=['gpt-5', 'gpt-4.1', 'o4-mini', 'gpt-4o-mini', 'gpt-4o', 'gpt-3.5-turbo'],
+                       help='OpenAI model to use for enhancement (default: gpt-4o-mini). Newer models: gpt-5, gpt-4.1, o4-mini')
+    args = parser.parse_args()
+    
     # Get project root (parent of src/)
     project_root = Path(__file__).parent.parent
     vcf_dir = project_root / 'data' / 'vcf'
     text_dir = project_root / 'data' / 'txt'  # Using 'txt' since that's where your file is
     output_file = project_root / 'web' / 'recommendations.json'
+    backup_file = project_root / 'web' / 'recommendations_backup.json'
+    openai_response_file = project_root / 'web' / 'openai_response.json'
     
     print("Step 1: Parsing .vcf files...")
     vcf_data = parse_all_vcf_files(vcf_dir)
@@ -518,17 +540,9 @@ def main():
     print(f"  Found {len(text_recs)} text recommendations")
     
     print("\nStep 4: Extracting .vcf mentions from chat...")
-    vcf_mentions = extract_vcf_mentions(all_messages, vcf_data)
+    vcf_mentions, mentioned_filenames = extract_vcf_mentions(all_messages, vcf_data)
     print(f"  Found {len(vcf_mentions)} .vcf file mentions")
-    
-    # Track which .vcf files were mentioned
-    mentioned_filenames = set()
-    for rec in vcf_mentions:
-        # Find the vcf file that matches
-        for vcf_key, vcf_info in vcf_data.items():
-            if vcf_info['name'] == rec['name'] and vcf_info['phone'] == rec['phone']:
-                mentioned_filenames.add(vcf_key)
-                break
+    print(f"  Tracked {len(mentioned_filenames)} mentioned VCF files (including skipped invalid names)")
     
     print("\nStep 5: Including unmentioned .vcf files...")
     unmentioned_vcf = include_unmentioned_vcf_files(vcf_data, mentioned_filenames)
@@ -554,6 +568,47 @@ def main():
                 continue
     
     print(f"  Total unique recommendations: {len(unique_recs)}")
+    
+    # Save backup before any enhancement
+    print(f"\nSaving backup to {backup_file}...")
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+    with open(backup_file, 'w', encoding='utf-8') as f:
+        json.dump(unique_recs, f, ensure_ascii=False, indent=2)
+    
+    # OpenAI enhancement (if requested)
+    if args.use_openai:
+        print("\n" + "="*50)
+        print(f"OpenAI Enhancement (Model: {args.openai_model})")
+        print("="*50)
+        
+        try:
+            from enhance_recommendations import enhance_recommendations_with_openai
+            
+            result = enhance_recommendations_with_openai(unique_recs, all_messages, model=args.openai_model)
+            
+            if result['success']:
+                print("✓ OpenAI enhancement successful!")
+                unique_recs = result['enhanced']
+                
+                # Save OpenAI response for debugging
+                with open(openai_response_file, 'w', encoding='utf-8') as f:
+                    json.dump({
+                        'raw_response': result['raw_response'],
+                        'timestamp': datetime.now().isoformat(),
+                        'model': args.openai_model,
+                        'recommendations_count': len(unique_recs)
+                    }, f, ensure_ascii=False, indent=2)
+                print(f"  Saved OpenAI response to {openai_response_file}")
+            else:
+                print(f"⚠ OpenAI enhancement failed: {result['error']}")
+                print("  Using original recommendations without enhancement.")
+                unique_recs = result['enhanced']  # This will be the original list
+        except ImportError:
+            print("⚠ OpenAI package not installed. Skipping enhancement.")
+            print("  Install with: pip install openai")
+        except Exception as e:
+            print(f"⚠ Error during OpenAI enhancement: {e}")
+            print("  Using original recommendations without enhancement.")
     
     print(f"\nWriting output to {output_file}...")
     # Ensure output directory exists
