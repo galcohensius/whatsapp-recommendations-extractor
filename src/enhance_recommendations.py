@@ -117,14 +117,46 @@ def enhance_recommendations_with_openai(
     """
     # Get API key
     if api_key is None:
-        api_key = os.getenv('OPENAI_API_KEY')
+        # Priority: 1) api_key.txt file, 2) environment variable, 3) other files
+        project_root = Path(__file__).parent.parent
+        api_key_file = project_root / 'api_key.txt'
+        
+        # First, try reading from api_key.txt (if it exists)
+        if api_key_file.exists():
+            try:
+                api_key = api_key_file.read_text(encoding='utf-8').strip()
+            except Exception:
+                api_key = None
+        
+        # If not found in api_key.txt, try environment variable
+        if not api_key:
+            api_key = os.getenv('OPENAI_API_KEY')
+        
+        # If still not found, try other file locations
+        if not api_key:
+            key_files = [
+                project_root / '.env',
+                Path.home() / '.openai_key'
+            ]
+            
+            for key_file in key_files:
+                if key_file.exists():
+                    try:
+                        api_key = key_file.read_text(encoding='utf-8').strip()
+                        # For .env files, look for OPENAI_API_KEY=... format
+                        if key_file.name == '.env' and 'OPENAI_API_KEY=' in api_key:
+                            api_key = api_key.split('OPENAI_API_KEY=', 1)[1].split('\n', 1)[0].strip().strip('"').strip("'")
+                        if api_key:
+                            break
+                    except Exception:
+                        continue
     
     if not api_key:
         return {
             'enhanced': recommendations,
             'raw_response': None,
             'success': False,
-            'error': 'OPENAI_API_KEY environment variable not set'
+            'error': 'OPENAI_API_KEY not found. Set it as environment variable or in api_key.txt/.env file'
         }
     
     try:

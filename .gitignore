@@ -49,3 +49,9 @@ data/vcf/*
 web/recommendations_backup.json
 web/openai_response.json
 
+# API keys and secrets
+.env
+api_key.txt
+*.key
+*.secret
+

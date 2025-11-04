@@ -4,10 +4,10 @@
 
 import json
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional
 
 
-def analyze_recommendations(json_file: Path = None, verbose: bool = True) -> Dict[str, List]:
+def analyze_recommendations(json_file: Optional[Path] = None, verbose: bool = True) -> Dict[str, List]:
     """Analyze recommendations.json for potential issues.
     
     Args:
@@ -83,8 +83,17 @@ def analyze_recommendations(json_file: Path = None, verbose: bool = True) -> Dic
 
 def _print_analysis_results(data: List[Dict], issues: Dict[str, List]):
     """Print analysis results to stdout."""
+    import sys
+    
     print(f"Total recommendations: {len(data)}\n")
-    print("=== ISSUES FOUND ===\n")
+    sys.stdout.flush()
+    
+    # Check if there are any real issues (excluding informational ones)
+    has_real_issues = any(issues[k] for k in ['unknown_names', 'very_short_names', 'names_with_newlines', 'no_phone', 'invalid_phones'])
+    
+    if has_real_issues:
+        print("=== ISSUES FOUND ===\n")
+        sys.stdout.flush()
     
     if issues['unknown_names']:
         print(f"❌ Unknown names: {len(issues['unknown_names'])}")
@@ -93,6 +102,7 @@ def _print_analysis_results(data: List[Dict], issues: Dict[str, List]):
         if len(issues['unknown_names']) > 5:
             print(f"   ... and {len(issues['unknown_names']) - 5} more")
         print()
+        sys.stdout.flush()
     
     if issues['very_short_names']:
         print(f"⚠️  Very short names (<=2 chars): {len(issues['very_short_names'])}")
@@ -101,24 +111,29 @@ def _print_analysis_results(data: List[Dict], issues: Dict[str, List]):
         if len(issues['very_short_names']) > 10:
             print(f"   ... and {len(issues['very_short_names']) - 10} more")
         print()
+        sys.stdout.flush()
     
     if issues['names_with_newlines']:
         print(f"⚠️  Names with newlines: {len(issues['names_with_newlines'])}")
         for rec in issues['names_with_newlines']:
             print(f"   - \"{rec.get('name')}\" (phone: {rec.get('phone')})")
         print()
+        sys.stdout.flush()
     
     if issues['no_phone']:
         print(f"❌ No phone: {len(issues['no_phone'])}")
         print()
+        sys.stdout.flush()
     
     if issues['no_service']:
         print(f"ℹ️  No service: {len(issues['no_service'])} (this is OK)")
         print()
+        sys.stdout.flush()
     
     if issues['no_date']:
         print(f"ℹ️  No date: {len(issues['no_date'])} (from unmentioned VCF files)")
         print()
+        sys.stdout.flush()
     
     if issues['invalid_phones']:
         print(f"⚠️  Suspicious phone numbers: {len(issues['invalid_phones'])}")
@@ -127,12 +142,14 @@ def _print_analysis_results(data: List[Dict], issues: Dict[str, List]):
         if len(issues['invalid_phones']) > 5:
             print(f"   ... and {len(issues['invalid_phones']) - 5} more")
         print()
+        sys.stdout.flush()
     
     # Summary
     total_issues = sum(len(v) for k, v in issues.items() if k not in ['no_service', 'no_date'])
     print(f"=== SUMMARY ===")
     print(f"Total recommendations: {len(data)}")
     print(f"Items with issues: {total_issues}")
+    sys.stdout.flush()
 
 
 if __name__ == '__main__':
