@@ -153,9 +153,9 @@
     "message_index": 170
   },
   {
-    "name": "דויד - מתקין מזגנים",
+    "name": "דויד",
     "phone": "+97252-333-3533",
-    "service": null,
+    "service": "מתקין מזגנים",
     "date": "2023-11-22 14:18:00",
     "recommender": "+972 52-295-4009",
     "context": "דויד - מתקין מזגנים.vcf (file attached)",
@@ -288,7 +288,7 @@
     "message_index": 413
   },
   {
-    "name": "גדרות-יוחאי",
+    "name": "גדרות",
     "phone": "+97254-329-5440",
     "service": "המלצה לאיש אלומיניום להחלפה של שער חשמלי לחנייה ושער כניסה",
     "date": "2024-02-04 16:29:00",
@@ -414,9 +414,9 @@
     "message_index": 654
   },
   {
-    "name": "לירן אריאל - ריסוס",
+    "name": "לירן אריאל",
     "phone": "+97250-550-4373",
-    "service": null,
+    "service": "ריסוס",
     "date": "2024-04-01 22:49:00",
     "recommender": "ליאור פרידמן",
     "context": "לירן אריאל - ריסוס.vcf (file attached)",
@@ -513,9 +513,9 @@
     "message_index": 819
   },
   {
-    "name": "אלי לבל - אלומיניום",
+    "name": "אלי לבל",
     "phone": "+97250-203-0027",
-    "service": null,
+    "service": "אלומיניום",
     "date": "2024-05-22 12:56:00",
     "recommender": "+972 54-232-2441",
     "context": "אלי לבל - אלומיניום.vcf (file attached)",
@@ -549,16 +549,16 @@
     "message_index": 908
   },
   {
-    "name": "אלכס גולדנברג - בדק בית",
+    "name": "אלכס גולדנברג",
     "phone": "+97252-651-7770",
-    "service": null,
+    "service": "בדק בית",
     "date": "2024-05-22 14:29:00",
     "recommender": "+972 54-321-5041",
     "context": "אלכס גולדנברג - בדק בית.vcf (file attached)",
     "message_index": 911
   },
   {
-    "name": "דאוד - קבלן פיתוח",
+    "name": "דאוד",
     "phone": "+97254-449-7004",
     "service": "קבלנים ל 3 נושאים\n\n1קבלן לפירוק ופינוי אסבסט המוסמך על ידי המשרד לאיכות הסביבה\n2קבלן להריסה ופינוי של בית מגורים ישן בכפר בשרון\n3 קבלן עבודות עפר לפינוי וישור קרקע",
     "date": "2024-05-25 11:51:00",
@@ -711,7 +711,7 @@
     "message_index": 1100
   },
   {
-    "name": "ציון רפד - פרדסיה",
+    "name": "ציון רפד",
     "phone": "+97254-456-7608",
     "service": "קבלן קונסטרוקציה או כל דבר אני פה לעזור",
     "date": "2024-07-21 10:42:00",
@@ -792,7 +792,7 @@
     "message_index": 1371
   },
   {
-    "name": "דניאל - בריכה אוקיינוס אחזקות",
+    "name": "דניאל",
     "phone": "+97250-430-0255",
     "service": "פול מן",
     "date": "2024-09-21 22:05:00",
@@ -920,7 +920,7 @@
   {
     "name": "Oz Taxi",
     "phone": "+97254-219-0678",
-    "service": null,
+    "service": "נהג מונית מסודר עם קבלות לנתבג",
     "date": "2024-11-02 12:04:00",
     "recommender": "+972 53-279-8788",
     "context": "Oz Taxi.vcf (file attached)",
@@ -929,7 +929,7 @@
   {
     "name": "עמי כפרה",
     "phone": "+97252-581-5011",
-    "service": null,
+    "service": "לא צוין",
     "date": "2024-11-04 13:58:00",
     "recommender": "ליאור פרידמן",
     "context": "עמי כפרה.vcf (file attached)",
@@ -938,7 +938,7 @@
   {
     "name": "Nisssn Laundry טכנאי מכשירים לבנים Machine Technician",
     "phone": "+97252-280-5015",
-    "service": null,
+    "service": "טכנאי מכשירים לבנים",
     "date": "2024-11-05 08:03:00",
     "recommender": "+972 54-561-1202",
     "context": "Nisssn Laundry טכנאי מכשירים לבנים Machine Technician.vcf (file attached)",
@@ -947,7 +947,7 @@
   {
     "name": "יוחאי ספר",
     "phone": "+97250-588-9502",
-    "service": null,
+    "service": "ספר",
     "date": "2024-11-06 11:44:00",
     "recommender": "+972 54-336-3444",
     "context": "יוחאי ספר.vcf (file attached)",
@@ -965,7 +965,7 @@
   {
     "name": "Danny Nagar",
     "phone": "+97254-492-1212",
-    "service": null,
+    "service": "לא צוין",
     "date": "2024-11-08 13:09:00",
     "recommender": "+972 53-279-8788",
     "context": "Danny Nagar.vcf (file attached)",
@@ -992,7 +992,7 @@
   {
     "name": "תריסים",
     "phone": "+97252-241-9079",
-    "service": null,
+    "service": "תיקון תריסים",
     "date": "2024-12-04 09:21:00",
     "recommender": "+972 52-838-2295",
     "context": "תריסים.vcf (file attached)",
@@ -1010,7 +1010,7 @@
   {
     "name": "שירי ילין קלינאית תקשורת",
     "phone": "+97254-784-4563",
-    "service": null,
+    "service": "קלינאית תקשורת",
     "date": "2024-12-12 11:03:00",
     "recommender": "+972 54-575-3244",
     "context": "שירי ילין קלינאית תקשורת.vcf (file attached)",
@@ -1019,7 +1019,7 @@
   {
     "name": "אפרת קורצר קלינאית תקשורת",
     "phone": "+97254-524-0277",
-    "service": null,
+    "service": "קלינאית תקשורת",
     "date": "2024-12-12 11:08:00",
     "recommender": "+972 52-379-1379",
     "context": "אפרת קורצר קלינאית תקשורת.vcf (file attached)",
@@ -1028,7 +1028,7 @@
   {
     "name": "הילה גובר",
     "phone": "+97252-264-7505",
-    "service": null,
+    "service": "קלינאית תקשורת",
     "date": "2024-12-12 11:20:00",
     "recommender": "+972 54-707-1442",
     "context": "הילה גובר.vcf (file attached)",
@@ -1037,7 +1037,7 @@
   {
     "name": "גילית מתוקי",
     "phone": "+97252-245-4723",
-    "service": null,
+    "service": "קלינאית תקשורת",
     "date": "2024-12-12 12:06:00",
     "recommender": "Uz Handyman Even Yehuda",
     "context": "גילית מתוקי.vcf (file attached)",
@@ -1046,7 +1046,7 @@
   {
     "name": "מעין קלינאית ליבי",
     "phone": "+97254-562-0132",
-    "service": null,
+    "service": "קלינאית תקשורת",
     "date": "2024-12-12 12:52:00",
     "recommender": "+972 54-321-5041",
     "context": "מעין קלינאית ליבי.vcf (file attached)",
@@ -1055,7 +1055,7 @@
   {
     "name": "ארנון אינסטלטור",
     "phone": "+97252-258-3643",
-    "service": null,
+    "service": "אינסטלטור",
     "date": "2024-12-12 16:01:00",
     "recommender": "+972 52-838-2295",
     "context": "ארנון אינסטלטור.vcf (file attached)",
@@ -1064,7 +1064,7 @@
   {
     "name": "שי קורמן",
     "phone": "+97252-374-8292",
-    "service": null,
+    "service": "אינסטלטור",
     "date": "2024-12-12 16:03:00",
     "recommender": "Uz Handyman Even Yehuda",
     "context": "שי קורמן.vcf (file attached)",
@@ -1100,7 +1100,7 @@
   {
     "name": "אפרים כהן אינסטלטור",
     "phone": "+97252-292-3672",
-    "service": null,
+    "service": "אינסטלטור",
     "date": "2025-01-07 10:07:00",
     "recommender": "+972 52-898-5588",
     "context": "אפרים כהן אינסטלטור.vcf (file attached)",
@@ -1109,7 +1109,7 @@
   {
     "name": "שלמה רדיו בלה הלה",
     "phone": "+97254-223-2226",
-    "service": null,
+    "service": "חשמלאי רכב",
     "date": "2025-01-14 09:59:00",
     "recommender": "+972 54-806-0399",
     "context": "שלמה רדיו בלה הלה.vcf (file attached)",
@@ -1118,7 +1118,7 @@
   {
     "name": "רועי חשמל רכב",
     "phone": "+97252-890-7771",
-    "service": null,
+    "service": "חשמלאי רכב",
     "date": "2025-01-14 10:03:00",
     "recommender": "Uz Handyman Even Yehuda",
     "context": "רועי חשמל רכב.vcf (file attached)",
@@ -1127,7 +1127,7 @@
   {
     "name": "דימיטרי מכונת",
     "phone": "+97250-532-5173",
-    "service": null,
+    "service": "טכנאי מכונות כביסה",
     "date": "2025-01-14 20:16:00",
     "recommender": "+972 52-442-0487",
     "context": "דימיטרי מכונת.vcf (file attached)",
@@ -1136,7 +1136,7 @@
   {
     "name": "דימטרי טכנאי מדיח כלים",
     "phone": "+97250-532-5173",
-    "service": null,
+    "service": "טכנאי מדיחים",
     "date": "2025-01-14 20:18:00",
     "recommender": "+972 50-480-0039",
     "context": "דימטרי טכנאי מדיח כלים.vcf (file attached)",
@@ -1145,7 +1145,7 @@
   {
     "name": "צחי טכנאי מקררים",
     "phone": "+97252-294-1354",
-    "service": null,
+    "service": "טכנאי מקררים",
     "date": "2025-01-14 20:34:00",
     "recommender": "Uz Handyman Even Yehuda",
     "context": "צחי טכנאי מקררים.vcf (file attached)",
@@ -1154,7 +1154,7 @@
   {
     "name": "דני זק",
     "phone": "+97250-307-2333",
-    "service": null,
+    "service": "שף פרטי ליום הולדת",
     "date": "2025-01-21 13:40:00",
     "recommender": "+972 52-847-7773",
     "context": "דני זק.vcf (file attached)",
@@ -1163,7 +1163,7 @@
   {
     "name": "Alon Barnea",
     "phone": "+97250-343-2234",
-    "service": null,
+    "service": "שף פרטי",
     "date": "2025-01-21 14:06:00",
     "recommender": "+972 53-279-8788",
     "context": "Alon Barnea.vcf (file attached)",
@@ -1172,7 +1172,7 @@
   {
     "name": "אלמוג סבן",
     "phone": "+97254-495-3295",
-    "service": null,
+    "service": "שף פרטי",
     "date": "2025-01-21 15:24:00",
     "recommender": "+972 52-811-8808",
     "context": "אלמוג סבן.vcf (file attached)",
@@ -1181,7 +1181,7 @@
   {
     "name": "Elad",
     "phone": "+97252-523-5317",
-    "service": null,
+    "service": "שף פרטי",
     "date": "2025-01-21 15:29:00",
     "recommender": "+972 54-748-7747",
     "context": "Elad.vcf (file attached)",
@@ -1190,7 +1190,7 @@
   {
     "name": "Ofir Shema Pergula",
     "phone": "+97250-722-2002",
-    "service": null,
+    "service": "מתקין פרגולות",
     "date": "2025-01-22 15:05:00",
     "recommender": "+972 53-279-8788",
     "context": "Ofir Shema Pergula.vcf (file attached)",
@@ -1208,7 +1208,7 @@
   {
     "name": "Tzahi Saat",
     "phone": "+97255-560-6703",
-    "service": null,
+    "service": "לא צוין",
     "date": "2025-01-30 19:45:00",
     "recommender": "+972 53-279-8788",
     "context": "Tzahi Saat.vcf (file attached)",
@@ -1217,7 +1217,7 @@
   {
     "name": "ענאן מילוי גז",
     "phone": "+97252-267-3507",
-    "service": null,
+    "service": "מילוי גז",
     "date": "2025-01-31 14:19:00",
     "recommender": "+972 54-300-9334",
     "context": "ענאן מילוי גז.vcf (file attached)",
@@ -1226,7 +1226,7 @@
   {
     "name": "משה בר יוחאי",
     "phone": "+97250-302-5717",
-    "service": null,
+    "service": "רופא שיניים",
     "date": "2025-02-02 15:09:00",
     "recommender": "+972 52-400-0343",
     "context": "משה בר יוחאי.vcf (file attached)",
@@ -1235,7 +1235,7 @@
   {
     "name": "Raz Yefet",
     "phone": "+97254-464-8912",
-    "service": null,
+    "service": "לא צוין",
     "date": "2025-02-05 17:44:00",
     "recommender": "+972 53-279-8788",
     "context": "Raz Yefet.vcf (file attached)",
@@ -1244,7 +1244,7 @@
   {
     "name": "אבי אלוש עבודות עץ",
     "phone": "+97252-353-4336",
-    "service": null,
+    "service": "עבודות עץ",
     "date": "2025-02-20 09:45:00",
     "recommender": "Uz Handyman Even Yehuda",
     "context": "אבי אלוש עבודות עץ.vcf (file attached)",
@@ -1262,7 +1262,7 @@
   {
     "name": "דניאל פרגולה",
     "phone": "+97252-274-5286",
-    "service": null,
+    "service": "מתקין פרגולות",
     "date": "2025-02-20 10:35:00",
     "recommender": "+972 54-772-6579",
     "context": "דניאל פרגולה.vcf (file attached)",
@@ -1271,7 +1271,7 @@
   {
     "name": "אבישי שלו",
     "phone": "+97250-759-9710",
-    "service": null,
+    "service": "עבודות עץ",
     "date": "2025-02-20 13:02:00",
     "recommender": "+972 50-480-0039",
     "context": "אבישי שלו.vcf (file attached)",
@@ -1280,7 +1280,7 @@
   {
     "name": "יעקב טכנאי דודים פיקלר",
     "phone": "+97252-244-4314",
-    "service": null,
+    "service": "טכנאי דודים",
     "date": "2025-02-26 17:09:00",
     "recommender": "+972 52-321-8195",
     "context": "יעקב טכנאי דודים פיקלר.vcf (file attached)",
@@ -1289,16 +1289,16 @@
   {
     "name": "דוד שמש המגן (רונן)",
     "phone": "+97252-244-4756",
-    "service": null,
+    "service": "טכנאי דודים",
     "date": "2025-02-26 17:18:00",
     "recommender": "+972 54-494-2859",
     "context": "דוד שמש המגן (רונן).vcf (file attached)",
     "message_index": 2238
   },
   {
-    "name": "עוצמה - מקצוענות במים חמים",
+    "name": "עוצמה",
     "phone": "+97250-424-4248",
-    "service": null,
+    "service": "מקצוענות במים חמים",
     "date": "2025-02-26 17:42:00",
     "recommender": "+972 54-806-0399",
     "context": "עוצמה - מקצוענות במים חמים.vcf (file attached)",
@@ -1307,7 +1307,7 @@
   {
     "name": "דר רופאת שיניים קלריס דנילוף",
     "phone": "+97252-269-4000",
-    "service": "סנדלר",
+    "service": "רופאת שיניים",
     "date": "2025-03-10 10:18:00",
     "recommender": "+972 52-524-1303",
     "context": "דר רופאת שיניים קלריס דנילוף.vcf (file attached)",
@@ -1316,16 +1316,16 @@
   {
     "name": "ד\"ר עוביידה",
     "phone": "+97250-667-4444",
-    "service": "דר עוביידה",
+    "service": "רופא שיניים",
     "date": "2025-03-10 10:31:00",
     "recommender": "+972 52-442-0487",
     "context": "דר עוביידה.vcf (file attached)",
     "message_index": 2294
   },
   {
-    "name": "שילה מסורי פיתוח נוף-גננות",
+    "name": "שילה מסורי פיתוח נוף",
     "phone": "+97253-277-0480",
-    "service": null,
+    "service": "גננות",
     "date": "2025-03-15 08:27:00",
     "recommender": "+972 50-480-0039",
     "context": "שילה מסורי פיתוח נוף-גננות.vcf (file attached)",
@@ -1343,7 +1343,7 @@
   {
     "name": "מור צאירי חשמלאי",
     "phone": "+97254-654-4133",
-    "service": null,
+    "service": "חשמלאי",
     "date": "2025-03-16 11:24:00",
     "recommender": "Uz Handyman Even Yehuda",
     "context": "מור צאירי חשמלאי.vcf (file attached)",
@@ -1352,7 +1352,7 @@
   {
     "name": "מתן אילוף כלבים",
     "phone": "+97250-755-0384",
-    "service": null,
+    "service": "אילוף כלבים",
     "date": "2025-03-19 18:35:00",
     "recommender": "+972 54-778-2567",
     "context": "מתן אילוף כלבים.vcf (file attached)",
@@ -1422,9 +1422,9 @@
     "message_index": 2572
   },
   {
-    "name": "דור-אל מקלחונים",
+    "name": "דור",
     "phone": "+97254-439-6060",
-    "service": null,
+    "service": "אל מקלחונים",
     "date": "2025-04-24 11:25:00",
     "recommender": "+972 54-321-5041",
     "context": "דור-אל מקלחונים.vcf (file attached)",
@@ -1613,7 +1613,7 @@
   {
     "name": "צחי ולנציה תיקון מקררים",
     "phone": "+97252-294-1354",
-    "service": null,
+    "service": "טכנאי מקררים",
     "date": "2025-05-11 19:46:00",
     "recommender": "+972 54-806-0399",
     "context": "צחי ולנציה תיקון מקררים.vcf (file attached)",
@@ -1629,9 +1629,9 @@
     "message_index": 2765
   },
   {
-    "name": "נועם פאר - דשא סינטטי",
+    "name": "נועם פאר",
     "phone": "+97252-483-2220",
-    "service": null,
+    "service": "דשא סינטטי",
     "date": "2025-05-14 09:23:00",
     "recommender": "+972 54-321-5041",
     "context": "נועם פאר - דשא סינטטי.vcf (file attached)",
@@ -1748,7 +1748,7 @@
   {
     "name": "טכנאי ממ״ד",
     "phone": "+97252-852-6060",
-    "service": null,
+    "service": "פורץ דלתות",
     "date": "2025-06-19 07:17:00",
     "recommender": "+972 52-508-7144",
     "context": "טכנאי ממ״ד.vcf (file attached)",
@@ -1766,7 +1766,7 @@
   {
     "name": "שוקי אלסקר מיזוג רכב נתניה",
     "phone": "+97252-468-5129",
-    "service": null,
+    "service": "מיזוג רכב",
     "date": "2025-06-25 12:36:00",
     "recommender": "+972 54-300-9334",
     "context": "שוקי אלסקר מיזוג רכב נתניה.vcf (file attached)",
@@ -1775,7 +1775,7 @@
   {
     "name": "תובל שניר (ג'� �י) מזגן רכב",
     "phone": "+97253-751-2537",
-    "service": null,
+    "service": "מיזוג רכב",
     "date": "2025-06-25 14:35:00",
     "recommender": "+972 54-772-6579",
     "context": "תובל שניר (ג'� �י) מזגן רכב.vcf (file attached)",
@@ -1784,7 +1784,7 @@
   {
     "name": "Shali Arusi",
     "phone": "+97254-216-1480",
-    "service": null,
+    "service": "לא צוין",
     "date": "2025-06-27 09:25:00",
     "recommender": "+972 53-279-8788",
     "context": "Shali Arusi.vcf (file attached)",
@@ -1926,7 +1926,7 @@
     "message_index": 3226
   },
   {
-    "name": "רועי בוסקילה-חשמלאי רכב דרך משה",
+    "name": "רועי בוסקילה",
     "phone": "+97252-890-7771",
     "service": "בסופו של יום ב 600 שח מקבלים מה שעולה פה 1300",
     "date": "2025-07-24 08:09:00",
@@ -2068,15 +2068,6 @@
     "recommender": "+972 52-609-8906",
     "context": "אלירן ריסוס.vcf (file attached)",
     "message_index": 3555
-  },
-  {
-    "name": "שמוליק סייאג - נהג מונית",
-    "phone": "+97254-234-3431",
-    "service": null,
-    "date": "2025-09-15 11:07:00",
-    "recommender": "+972 54-232-2441",
-    "context": "שמוליק סייאג - נהג מונית.vcf (file attached)",
-    "message_index": 3591
   },
   {
     "name": "Yaron Sade",

@@ -13,10 +13,10 @@ A tool to extract recommendations from WhatsApp chat messages and VCF contact fi
 
 ### 1. Extract Recommendations
 
-Run the extraction script to process WhatsApp chats and VCF files:
+Run the main script to process WhatsApp chats and VCF files:
 
 ```bash
-python src/extract_recommendations.py
+python main.py
 ```
 
 This will:
@@ -24,7 +24,7 @@ This will:
 - Parse WhatsApp chat from `data/txt/`
 - Generate `web/recommendations.json`
 
-### 2. Main Workflow (Recommended)
+### 2. Advanced Options
 
 Use the main script for the complete workflow:
 
@@ -86,4 +86,7 @@ https://<your-username>.github.io/<repository-name>/
    - WhatsApp chat exports in `data/txt/`
    - VCF contact files in `data/vcf/`
 
-3. Run the extraction script to generate the recommendations.
+3. Run the main script to generate the recommendations:
+   ```bash
+   python main.py
+   ```
