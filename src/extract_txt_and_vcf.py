@@ -245,7 +245,7 @@ def parse_all_vcf_files(data_dir: Path) -> Dict[str, Dict]:
     return vcf_data
 
 
-def extract_service_from_context(text: str, message_index: Optional[int] = None, all_messages: Optional[List[Dict]] = None) -> Optional[str]:
+def extract_service_from_context(text: str, chat_message_index: Optional[int] = None, all_messages: Optional[List[Dict]] = None) -> Optional[str]:
     """Intelligently extract service/category from chat context.
     
     Looks for:
@@ -264,9 +264,9 @@ def extract_service_from_context(text: str, message_index: Optional[int] = None,
     ]
     
     # First, check if there's a question in the current or recent messages
-    if all_messages and message_index is not None:
+    if all_messages and chat_message_index is not None:
         # Look at current message and up to 2 previous messages
-        for i in range(max(0, message_index - 2), message_index + 1):
+        for i in range(max(0, chat_message_index - 2), chat_message_index + 1):
             msg_text = all_messages[i]['text']
             for pattern in question_patterns:
                 match = re.search(pattern, msg_text, re.IGNORECASE)
@@ -379,26 +379,26 @@ def get_full_context_for_recommendation(rec: Dict, messages: List[Dict], context
     """Get full chat context for a recommendation.
     
     Args:
-        rec: Recommendation dictionary with 'message_index' field
+        rec: Recommendation dictionary with 'chat_message_index' field
         messages: List of all parsed messages
         context_window: Number of messages before and after to include (default: 5)
     
     Returns:
-        Formatted string with full context, or original context if message_index is None
+        Formatted string with full context, or original context if chat_message_index is None
     """
-    message_index = rec.get('message_index')
+    chat_message_index = rec.get('chat_message_index')
     
     # If no message index (e.g., unmentioned VCF files), return original context
-    if message_index is None:
+    if chat_message_index is None:
         return rec.get('context', '')
     
-    # Ensure message_index is valid
-    if message_index < 0 or message_index >= len(messages):
+    # Ensure chat_message_index is valid
+    if chat_message_index < 0 or chat_message_index >= len(messages):
         return rec.get('context', '')
     
     # Get surrounding messages
-    start_idx = max(0, message_index - context_window)
-    end_idx = min(len(messages), message_index + context_window + 1)
+    start_idx = max(0, chat_message_index - context_window)
+    end_idx = min(len(messages), chat_message_index + context_window + 1)
     
     context_messages = []
     for i in range(start_idx, end_idx):
@@ -408,7 +408,7 @@ def get_full_context_for_recommendation(rec: Dict, messages: List[Dict], context
         text = msg.get('text', '')
         
         # Mark the message that contains the recommendation
-        marker = ">>> " if i == message_index else "    "
+        marker = ">>> " if i == chat_message_index else "    "
         context_messages.append(f"{marker}[{date_str}] {sender}: {text}")
     
     return "\n".join(context_messages)
@@ -540,7 +540,7 @@ def extract_text_recommendations(messages: List[Dict], vcf_data: Dict) -> List[D
                             break
             
             # Intelligently extract service from context
-            service = extract_service_from_context(text, idx, messages)
+            service = extract_service_from_context(text, chat_message_index=idx, all_messages=messages)
             if not service:
                 service = extract_service_from_context(context, None, None)
             
@@ -576,7 +576,7 @@ def extract_text_recommendations(messages: List[Dict], vcf_data: Dict) -> List[D
                     'date': msg['date'],
                     'recommender': recommender,  # Normalized phone number or sender as-is
                     'context': context.strip(),
-                    'message_index': idx  # Store message index for context lookup
+                    'chat_message_index': idx  # Store chat message index for context lookup
                 })
     
     return recommendations
@@ -622,7 +622,7 @@ def extract_vcf_mentions(messages: List[Dict], vcf_data: Dict) -> Tuple[List[Dic
                 context = msg['text']
                 
                 # Check for additional context in message (overrides filename extraction if better)
-                service_from_context = extract_service_from_context(context, idx, messages)
+                service_from_context = extract_service_from_context(context, chat_message_index=idx, all_messages=messages)
                 if service_from_context:
                     # Prefer context service if it exists, otherwise use filename service
                     vcf_info['service'] = service_from_context
@@ -637,7 +637,7 @@ def extract_vcf_mentions(messages: List[Dict], vcf_data: Dict) -> Tuple[List[Dic
                     'date': msg['date'],
                     'recommender': recommender,  # Normalized phone number or sender as-is
                     'context': context.strip(),
-                    'message_index': idx  # Store message index for context lookup
+                    'chat_message_index': idx  # Store chat message index for context lookup
                 })
     
     return recommendations, mentioned_filenames
@@ -664,7 +664,7 @@ def include_unmentioned_vcf_files(vcf_data: Dict, mentioned_filenames: set) -> L
                 'date': None,
                 'recommender': None,
                 'context': f"From file: {vcf_info['filename']}",
-                'message_index': None  # No message index for unmentioned VCF files
+                'chat_message_index': None  # No chat message index for unmentioned VCF files
             })
     
     return recommendations
