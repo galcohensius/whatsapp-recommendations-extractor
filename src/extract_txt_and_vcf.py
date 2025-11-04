@@ -597,7 +597,8 @@ def extract_vcf_mentions(messages: List[Dict], vcf_data: Dict) -> Tuple[List[Dic
         text = msg['text']
         
         # Look for .vcf file attachments
-        vcf_pattern = r'([^.]+\.vcf)\s*\(file attached\)'
+        # Pattern: filename.vcf (file attached) - filename can contain any characters including periods
+        vcf_pattern = r'([^\n]+\.vcf)\s*\(file attached\)'
         vcf_matches = re.finditer(vcf_pattern, text, re.IGNORECASE)
         
         for match in vcf_matches:
