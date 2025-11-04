@@ -622,6 +622,14 @@ def extract_vcf_mentions(messages: List[Dict], vcf_data: Dict) -> Tuple[List[Dic
                 # Get context (message and surrounding messages if available)
                 context = msg['text']
                 
+                # Clean context: Remove redundant ".vcf (file attached)" patterns
+                # Pattern matches: filename.vcf (file attached) or just .vcf (file attached)
+                context = re.sub(r'[^\n]*\.vcf\s*\(file attached\)', '', context, flags=re.IGNORECASE)
+                # Also remove standalone "(file attached)" if present
+                context = re.sub(r'\s*\(file attached\)', '', context, flags=re.IGNORECASE)
+                # Clean up extra whitespace
+                context = re.sub(r'\s+', ' ', context).strip()
+                
                 # Check for additional context in message (overrides filename extraction if better)
                 service_from_context = extract_service_from_context(context, chat_message_index=idx, all_messages=messages)
                 if service_from_context:
@@ -637,7 +645,7 @@ def extract_vcf_mentions(messages: List[Dict], vcf_data: Dict) -> Tuple[List[Dic
                     'service': vcf_info.get('service'),
                     'date': msg['date'],
                     'recommender': recommender,  # Normalized phone number or sender as-is
-                    'context': context.strip(),
+                    'context': context if context else None,  # Use None if context is empty after cleaning
                     'chat_message_index': idx  # Store chat message index for context lookup
                 })
     
