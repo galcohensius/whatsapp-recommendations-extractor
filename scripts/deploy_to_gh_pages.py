@@ -10,9 +10,10 @@ so they can be served by GitHub Pages.
 import shutil
 import sys
 from pathlib import Path
+from typing import Optional
 
 
-def deploy_to_gh_pages(project_root: Path = None, auto_commit: bool = False) -> bool:
+def deploy_to_gh_pages(project_root: Optional[Path] = None, auto_commit: bool = False) -> bool:
     """Deploy web files to GitHub Pages docs folder.
     
     Args:
@@ -32,41 +33,42 @@ def deploy_to_gh_pages(project_root: Path = None, auto_commit: bool = False) -> 
     # Ensure docs directory exists
     docs_dir.mkdir(exist_ok=True)
     
-    # Files to copy
-    files_to_copy = [
-        ('index.html', 'index.html'),
-        ('recommendations.json', 'recommendations.json')
-    ]
-    
+    # Only copy recommendations.json (index.html is edited directly in docs/)
     print("="*70)
     print("DEPLOYING TO GITHUB PAGES")
     print("="*70)
-    print(f"\nSource: {web_dir}")
+    print(f"\nSource: {web_dir}/recommendations.json")
     print(f"Destination: {docs_dir}\n")
     
-    # Copy files
-    copied_files = []
-    for src_name, dst_name in files_to_copy:
-        src_file = web_dir / src_name
-        dst_file = docs_dir / dst_name
-        
-        if not src_file.exists():
-            print(f"⚠️  Warning: {src_file} not found, skipping...")
-            continue
-        
-        try:
-            shutil.copy2(src_file, dst_file)
-            copied_files.append(dst_name)
-            print(f"✓ Copied: {src_name} → docs/{dst_name}")
-        except Exception as e:
-            print(f"✗ Error copying {src_name}: {e}")
-            return False
+    # Ensure docs directory exists
+    docs_dir.mkdir(exist_ok=True)
     
-    if not copied_files:
-        print("⚠️  No files were copied. Check if source files exist.")
+    # Copy only recommendations.json
+    src_file = web_dir / 'recommendations.json'
+    dst_file = docs_dir / 'recommendations.json'
+    
+    if not src_file.exists():
+        print(f"⚠️  Warning: {src_file} not found!")
+        print(f"   Make sure you've run the extraction first: python main.py")
         return False
     
-    print(f"\n✓ Successfully deployed {len(copied_files)} file(s) to docs/")
+    try:
+        shutil.copy2(src_file, dst_file)
+        print(f"✓ Copied: recommendations.json → docs/recommendations.json")
+        copied_files = ['recommendations.json']
+    except Exception as e:
+        print(f"✗ Error copying recommendations.json: {e}")
+        return False
+    
+    # Verify docs/index.html exists
+    if not (docs_dir / 'index.html').exists():
+        print(f"\n⚠️  Warning: docs/index.html not found!")
+        print(f"   Make sure docs/index.html exists (it should be committed to git)")
+        return False
+    
+    print(f"✓ Verified: docs/index.html exists")
+    
+    print(f"\n✓ Successfully updated recommendations.json in docs/")
     
     # Auto-commit if requested
     if auto_commit:

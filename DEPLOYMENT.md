@@ -96,10 +96,12 @@ Or manually:
 ## What Gets Deployed
 
 The deployment script copies:
-- `web/index.html` → `docs/index.html`
 - `web/recommendations.json` → `docs/recommendations.json`
 
-**Note:** Only these files are deployed. Backup files and OpenAI responses remain private.
+**Note:** 
+- `docs/index.html` is edited directly (not copied from web/)
+- Only `recommendations.json` is updated during deployment
+- Backup files and OpenAI responses remain private
 
 ## Custom Domain (Optional)
 

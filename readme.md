@@ -49,10 +49,12 @@ To view the interactive web interface locally, run a local server:
 
 ```bash
 # From project root
-cd web
+cd docs
 python -m http.server 8000
 ```
 Then navigate to: `http://localhost:8000`
+
+**Note:** Edit `docs/index.html` directly to customize the interface.
 
 ### Public Deployment (GitHub Pages)
 

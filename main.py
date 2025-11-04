@@ -148,23 +148,25 @@ def print_next_steps(deployed: bool = False):
     
     if deployed:
         print("\n🌐 Your site is deployed!")
-        print("   It will be available at: https://<username>.github.io/<repo-name>/")
+        print("   It will be available at: https://galcohensius.github.io/whatsapp-recommendations-extractor/")
         print("   (Check DEPLOYMENT.md for setup instructions if this is your first time)")
     else:
         print("\n📊 To view the recommendations locally:")
-        print("   1. Run: cd web && python -m http.server 8000")
+        print("   1. Run: cd docs && python -m http.server 8000")
         print("   2. Open: http://localhost:8000")
     
     print("\n📁 Output files:")
     print("   - web/recommendations.json (main output)")
     print("   - web/recommendations_backup.json (backup before AI enhancement)")
-    print("   - docs/ (GitHub Pages deployment files)")
+    print("   - docs/index.html (edit this file to customize the interface)")
+    print("   - docs/recommendations.json (updated during deployment)")
     
     print("\n💡 Tips:")
+    print("   - Edit docs/index.html directly to customize the interface")
     print("   - Use --skip-fix to skip the cleanup step")
     print("   - Use --skip-analysis to skip the analysis step")
     print("   - Use --use-openai to enhance recommendations with AI")
-    print("   - Use --deploy to deploy to GitHub Pages after extraction")
+    print("   - Use --deploy to update recommendations.json on GitHub Pages")
     print("="*70)
 
 
