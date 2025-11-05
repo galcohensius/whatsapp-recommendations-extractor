@@ -22,23 +22,65 @@ from analyze_recommendations import analyze_recommendations
 
 
 def extract_service_from_name(name: str) -> Optional[str]:
-    """Extract service from name field if it contains 'Name - Service' pattern.
+    """Extract service from name field if it contains service information.
     
-    Examples:
-        'דויד - מתקין מזגנים' -> 'מתקין מזגנים'
-        'John - Plumber' -> 'Plumber'
+    Handles multiple patterns:
+    - 'דויד - מתקין מזגנים' -> 'מתקין מזגנים' (Name - Service)
+    - 'מתן אילוף כלבים' -> 'אילוף כלבים' (Name Service)
+    - 'נגריה בצרה חנן' -> 'נגריה' (Service Name)
+    - 'מור צאירי חשמלאי' -> 'חשמלאי' (Name Service)
     """
     if not name:
         return None
     
-    # Pattern: Name - Service (supports -, –, —, and variations)
-    patterns = [
+    name = name.strip()
+    
+    # Common Hebrew service/occupation keywords (ordered by specificity)
+    # Multi-word services first (more specific)
+    multi_word_services = [
+        r'אילוף\s+כלבים',  # dog training
+        r'עבודות\s+עץ',  # woodwork
+        r'דוד\s+שמש',  # solar water heater
+        r'מזגן\s+רכב',  # car AC
+        r'מטענים\s+חשמליים',  # electric chargers
+        r'מערכות\s+רדיו',  # radio systems
+        r'מפוח\s+גג',  # roof blower
+        r'עורך\s+דין',  # lawyer
+    ]
+    
+    # Single-word service keywords
+    single_word_services = [
+        r'חשמלאי',  # electrician
+        r'אינסטלטור',  # plumber
+        r'נגריה',  # carpentry
+        r'גגן',  # roofer
+        r'ריסוס',  # pest control/spraying
+        r'שיפוצים',  # renovations
+        r'מיקרוטופינג',  # microtopping
+        r'אלומיניום',  # aluminum work
+        r'דלתות',  # doors
+        r'גנן',  # gardener
+        r'מתווך',  # real estate agent
+        r'רופא',  # doctor
+        r'פרגולה',  # pergola (construction/service)
+    ]
+    
+    # Occupation patterns with following words (e.g., "טכנאי דודים", "מתקין מזגנים")
+    occupation_patterns = [
+        (r'טכנאי', r'\s+\S+'),  # טכנאי + word (e.g., דודים, בר מים)
+        (r'מתקין', r'\s+\S+'),  # מתקין + word (e.g., מזגנים)
+    ]
+    
+    service_keywords = multi_word_services + single_word_services
+    
+    # First, try dash-separated patterns (Name - Service or Service - Name)
+    dash_patterns = [
         r'^([^\-–—]+?)\s*[-–—]\s*(.+)$',  # Name - Service
         r'^(.+?)\s*[-–—]\s*(.+)$',         # More flexible
     ]
     
-    for pattern in patterns:
-        match = re.match(pattern, name.strip())
+    for pattern in dash_patterns:
+        match = re.match(pattern, name)
         if match:
             name_part = match.group(1).strip()
             service_part = match.group(2).strip()
@@ -47,7 +89,113 @@ def extract_service_from_name(name: str) -> Optional[str]:
             if len(service_part) >= 3 and len(name_part) >= 2:
                 return service_part
     
+    # Second, try to find occupation patterns (e.g., "טכנאי דודים", "מתקין מזגנים")
+    for occupation, suffix_pattern in occupation_patterns:
+        pattern = occupation + suffix_pattern
+        match = re.search(pattern, name, re.IGNORECASE)
+        if match:
+            service = match.group(0).strip()
+            # If service is at beginning or end, extract it
+            if name.startswith(service) or name.endswith(service):
+                return service
+            # If service is in the middle, extract just the service part
+            else:
+                return service
+    
+    # Third, try to find service keywords in the name
+    for keyword_pattern in service_keywords:
+        match = re.search(keyword_pattern, name, re.IGNORECASE)
+        if match:
+            service = match.group(0).strip()
+            # If the service is at the beginning, extract it
+            if name.startswith(service):
+                # Check if there's more text after (business name/location)
+                remaining = name[len(service):].strip()
+                if remaining and len(remaining) >= 2:
+                    # Service is at the beginning
+                    return service
+            # If service is at the end, extract it
+            elif name.endswith(service):
+                # Service is at the end
+                return service
+            # If service is in the middle, extract it
+            else:
+                # Service is embedded, extract just the service part
+                return service
+    
+    # Fourth, try heuristic: if name has 3+ words, the last word(s) might be service
+    # This handles cases like "מתן אילוף כלבים" (3 words: name + service)
+    words = name.split()
+    if len(words) >= 3:
+        # Check if last 2 words could be a service (common pattern)
+        last_two = ' '.join(words[-2:])
+        # Check if last two words contain service keywords
+        for keyword_pattern in service_keywords:
+            if re.search(keyword_pattern, last_two, re.IGNORECASE):
+                return last_two
+        # Check occupation patterns in last two words
+        for occupation, suffix_pattern in occupation_patterns:
+            pattern = occupation + suffix_pattern
+            if re.search(pattern, last_two, re.IGNORECASE):
+                match = re.search(pattern, last_two, re.IGNORECASE)
+                if match:
+                    return match.group(0).strip()
+        # Fallback: if last word is a known service keyword
+        last_word = words[-1]
+        for keyword_pattern in service_keywords:
+            if re.match(keyword_pattern + r'$', last_word, re.IGNORECASE):
+                return last_word
+    
+    # Fifth, if name has 2 words, check if second word is a service
+    if len(words) == 2:
+        second_word = words[1]
+        for keyword_pattern in service_keywords:
+            if re.match(keyword_pattern + r'$', second_word, re.IGNORECASE):
+                return second_word
+    
     return None
+
+
+def clean_name_after_service_extraction(name: str, extracted_service: str) -> str:
+    """Remove the extracted service from the name to get just the person's name.
+    
+    Handles multiple patterns:
+    - 'דויד - מתקין מזגנים' + 'מתקין מזגנים' -> 'דויד'
+    - 'מתן אילוף כלבים' + 'אילוף כלבים' -> 'מתן'
+    - 'נגריה בצרה חנן' + 'נגריה' -> 'בצרה חנן'
+    - 'מור צאירי חשמלאי' + 'חשמלאי' -> 'מור צאירי'
+    """
+    if not name or not extracted_service:
+        return name
+    
+    name = name.strip()
+    service = extracted_service.strip()
+    
+    # Remove service from name (handle various patterns)
+    # Pattern 1: Dash-separated (Name - Service)
+    dash_pattern = r'^([^\-–—]+?)\s*[-–—]\s*' + re.escape(service) + r'\s*$'
+    match = re.match(dash_pattern, name)
+    if match:
+        return match.group(1).strip()
+    
+    # Pattern 2: Service at the beginning (Service Name)
+    if name.startswith(service):
+        remaining = name[len(service):].strip()
+        if remaining:
+            return remaining
+    
+    # Pattern 3: Service at the end (Name Service)
+    if name.endswith(service):
+        remaining = name[:-len(service)].strip()
+        if remaining:
+            return remaining
+    
+    # Pattern 4: Service embedded (remove it)
+    # Replace service with space, then clean up extra spaces
+    cleaned = re.sub(re.escape(service), '', name, count=1)
+    cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+    
+    return cleaned if cleaned else name
 
 
 def extract_service_from_filename(filename: str, name: Optional[str] = None) -> Optional[str]:
@@ -208,15 +356,7 @@ def parse_vcf_file(vcf_path: Path) -> Optional[Dict[str, Optional[str]]]:
             service = extract_service_from_name(name)
             # If service was extracted from name, clean the name
             if service:
-                # Remove service part from name
-                name_clean_patterns = [
-                    r'^([^\-–—]+?)\s*[-–—]\s*.+$',  # Name - Service -> Name
-                ]
-                for pattern in name_clean_patterns:
-                    match = re.match(pattern, name)
-                    if match:
-                        name = match.group(1).strip()
-                        break
+                name = clean_name_after_service_extraction(name, service)
         
         # 2. If no service from name, try filename
         if not service:
@@ -553,14 +693,7 @@ def extract_text_recommendations(messages: List[Dict], vcf_data: Dict) -> List[D
                     # Use service from name if we don't have one from context
                     service = service_from_name
                     # Clean the name (remove service part)
-                    name_clean_patterns = [
-                        r'^([^\-–—]+?)\s*[-–—]\s*.+$',  # Name - Service -> Name
-                    ]
-                    for pattern in name_clean_patterns:
-                        match = re.match(pattern, name)
-                        if match:
-                            name = match.group(1).strip()
-                            break
+                    name = clean_name_after_service_extraction(name, service_from_name)
                 # Validate name again after cleaning
                 if not is_valid_name(name):
                     name = None

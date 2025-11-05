@@ -16,7 +16,7 @@ from typing import Dict, List, Optional
 
 # Add src directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
-from extract_txt_and_vcf import is_valid_name
+from extract_txt_and_vcf import is_valid_name, extract_service_from_name, clean_name_after_service_extraction
 
 
 def clean_context_text(context: str) -> str:
@@ -149,6 +149,27 @@ def fix_recommendations(input_file: Path, output_file: Optional[Path] = None) ->
     
     print(f"  Cleaned {contexts_cleaned} context fields")
     
+    # Step 2.6: Extract services from names for entries with null service
+    print("\nStep 2.6: Extracting services from names...")
+    services_extracted = 0
+    
+    for rec in unique_recs:
+        # Only process entries with null service
+        if not rec.get('service'):
+            name = rec.get('name', '').strip()
+            if name and name != 'Unknown':
+                # Try to extract service from name
+                service = extract_service_from_name(name)
+                if service:
+                    # Extract service and clean the name
+                    rec['service'] = service
+                    cleaned_name = clean_name_after_service_extraction(name, service)
+                    if cleaned_name and cleaned_name != name:
+                        rec['name'] = cleaned_name
+                    services_extracted += 1
+    
+    print(f"  Extracted services from {services_extracted} names")
+    
     # Step 3: Clean and fix names
     print("\nStep 3: Cleaning names...")
     names_fixed = 0
@@ -232,6 +253,7 @@ def fix_recommendations(input_file: Path, output_file: Optional[Path] = None) ->
         'total_after': len(unique_recs),
         'duplicates_removed': duplicates_removed,
         'services_cleaned': services_cleaned,
+        'services_extracted': services_extracted,
         'names_fixed': names_fixed,
         'names_set_to_unknown': names_set_to_unknown,
         'phones_removed': phones_removed
@@ -261,6 +283,7 @@ if __name__ == '__main__':
     print(f"  After: {result['total_after']} recommendations")
     print(f"  Duplicates removed: {result['duplicates_removed']}")
     print(f"  Services cleaned: {result['services_cleaned']}")
+    print(f"  Services extracted from names: {result['services_extracted']}")
     print(f"  Names fixed: {result['names_fixed']}")
     print(f"  Names set to Unknown: {result['names_set_to_unknown']}")
     print(f"  Entries removed (invalid phones): {result['phones_removed']}")
