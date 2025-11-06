@@ -1,5 +1,7 @@
 # GitHub Pages Deployment Guide
 
+**Live site:** [https://galcohensius.github.io/whatsapp-recommendations-extractor/](https://galcohensius.github.io/whatsapp-recommendations-extractor/)
+
 This guide explains how to deploy the recommendations web interface to GitHub Pages so it's publicly accessible.
 
 ## Quick Start
@@ -46,6 +48,9 @@ python scripts/deploy_to_gh_pages.py
    ```
    https://<your-username>.github.io/<repository-name>/
    ```
+
+   For this project, the deployed site is:
+   [https://galcohensius.github.io/whatsapp-recommendations-extractor/](https://galcohensius.github.io/whatsapp-recommendations-extractor/)
 
 ## Automatic Deployment
 
