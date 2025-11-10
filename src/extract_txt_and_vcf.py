@@ -567,11 +567,32 @@ def is_valid_name(name: str) -> bool:
     if name in personal_contacts:
         return False
     
+    # Common non-name words that appear in URLs and shouldn't be names
+    non_name_words = [
+        'https', 'http', 'www', 'com', 'net', 'org', 'co.il', 'gov', 'io', 'app',
+        'book', 'location', 'maps', 'posts', 'story', 'reel', 'video', 'watch',
+        'facebook', 'twitter', 'x.com', 'instagram', 'tiktok', 'zoom', 'youtube',
+        'goo.gl', 'maps.google', 'maps.app', 'activetrail', 'idfanc',
+        'story_fbid', 'posts/', 'reel/', 'video/', 'watch/', 'stories/',
+        'item', 'tel', 'vcf', 'id=', 'fbid=', 'status/', 'status?',
+    ]
+    
+    name_lower = name.lower().strip()
+    
+    # Check if it's a known non-name word
+    if name_lower in non_name_words:
+        return False
+    
+    # Check if it starts with common URL fragments
+    if any(name_lower.startswith(word + '/') or name_lower.startswith(word + '.') 
+           for word in ['com', 'www', 'http', 'https', 'maps', 'posts', 'story', 'reel']):
+        return False
+    
     # Check for URL-like patterns
     url_indicators = [
         r'^https?://',  # URL protocol
         r'^www\.',      # www. prefix
-        r'\.(com|net|org|co\.il|gov)',  # Domain extensions
+        r'\.(com|net|org|co\.il|gov|io|app)',  # Domain extensions
         r'[?&]',        # URL query parameters
         r'=',           # URL parameters (key=value)
         r'%[0-9A-Fa-f]{2}',  # URL encoding
@@ -582,9 +603,9 @@ def is_valid_name(name: str) -> bool:
         r'gbraid=',     # Google Ads tracking
         r'utm_',        # UTM parameters
         r'story_fbid',  # Facebook story ID
+        r'^[a-z]+/[a-z]+',  # URL path patterns like "com/posts"
+        r'^[a-z]+\.',    # Domain-like patterns
     ]
-    
-    name_lower = name.lower()
     
     # Check for URL indicators
     for pattern in url_indicators:
@@ -605,6 +626,11 @@ def is_valid_name(name: str) -> bool:
     
     # If it starts with common URL parameter prefixes, reject it
     if re.match(r'^(gad_|utm_|gclid|fbid|campaignid|gbraid)', name_lower):
+        return False
+    
+    # Check if it's a pure number or mostly numbers (likely an ID, not a name)
+    digits_ratio = sum(1 for c in name if c.isdigit()) / len(name) if name else 0
+    if digits_ratio > 0.7:  # More than 70% digits
         return False
     
     return True

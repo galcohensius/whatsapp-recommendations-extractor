@@ -23,7 +23,14 @@ def normalize_phone(phone_str: str) -> str:
 
 
 def extract_phone_numbers(text: str) -> List[str]:
-    """Extract phone numbers from text (Israeli format)."""
+    """Extract phone numbers from text (Israeli format), excluding URLs and IDs."""
+    # First, identify and exclude URL contexts
+    # URLs often contain numbers that look like phone numbers but aren't
+    url_pattern = r'https?://[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.(com|net|org|co\.il|gov|io|app)[^\s]*'
+    url_matches = []
+    for match in re.finditer(url_pattern, text, re.IGNORECASE):
+        url_matches.append((match.start(), match.end()))
+    
     # Patterns for Israeli phone numbers
     patterns = [
         r'\+972[\s\-]?\d{1,2}[\s\-]?\d{3}[\s\-]?\d{4}',  # +972 format
@@ -33,12 +40,37 @@ def extract_phone_numbers(text: str) -> List[str]:
     
     phones = []
     for pattern in patterns:
-        matches = re.findall(pattern, text)
-        for match in matches:
-            normalized = normalize_phone(match)
-            # Only add if it looks like a valid phone number
-            if len(re.sub(r'[^\d]', '', normalized)) >= 9:
-                phones.append(normalized)
+        for match in re.finditer(pattern, text):
+            # Check if this match is inside a URL
+            is_in_url = False
+            match_start, match_end = match.span()
+            for url_start, url_end in url_matches:
+                if url_start <= match_start <= url_end or url_start <= match_end <= url_end:
+                    is_in_url = True
+                    break
+            
+            if is_in_url:
+                continue
+            
+            # Also check if the phone is immediately preceded by URL-like characters
+            before_phone = text[max(0, match_start - 10):match_start]
+            if re.search(r'[\./=\?&#]', before_phone):
+                # Likely part of a URL or parameter
+                continue
+            
+            # Check if it's part of a social media ID pattern (e.g., /posts/1234567890)
+            after_phone = text[match_end:min(len(text), match_end + 10)]
+            if re.search(r'^[/\?&]', after_phone):
+                # Likely part of a URL parameter
+                continue
+            
+            normalized = normalize_phone(match.group())
+            # Only add if it looks like a valid phone number (9-10 digits)
+            digits_only = re.sub(r'[^\d]', '', normalized)
+            if len(digits_only) >= 9 and len(digits_only) <= 10:
+                # Additional validation: Israeli phone numbers should start with 0 or +972
+                if normalized.startswith('0') or normalized.startswith('+972'):
+                    phones.append(normalized)
     
     return list(set(phones))  # Remove duplicates
 

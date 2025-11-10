@@ -170,6 +170,58 @@ def fix_recommendations(input_file: Path, output_file: Optional[Path] = None) ->
     
     print(f"  Extracted services from {services_extracted} names")
     
+    # Step 2.7: Remove invalid recommendations (URL fragments, invalid names, etc.)
+    print("\nStep 2.7: Filtering invalid recommendations...")
+    invalid_removed = 0
+    filtered_recs = []
+    
+    non_name_words = ['https', 'http', 'www', 'com', 'book', 'location', 'maps', 
+                     'posts', 'story', 'reel', 'video', 'watch', 'unknown']
+    
+    for rec in unique_recs:
+        name = rec.get('name', '').strip()
+        phone = rec.get('phone', '').strip()
+        
+        # Skip if name is a known non-name word
+        if name:
+            name_lower = name.lower()
+            if name_lower in non_name_words:
+                invalid_removed += 1
+                continue
+            
+            # Skip if name looks like URL fragment
+            if any(name_lower.startswith(word + '/') or name_lower.startswith(word + '.') 
+                   for word in ['com', 'www', 'http', 'https', 'maps', 'posts', 'story', 'reel']):
+                invalid_removed += 1
+                continue
+            
+            # Skip if name is invalid
+            if not is_valid_name(name):
+                invalid_removed += 1
+                continue
+        
+        # Skip if phone doesn't look like a valid Israeli phone
+        if phone:
+            phone_clean = re.sub(r'[^\d+]', '', phone)
+            # Must start with 0, +972, or 972 for Israeli numbers
+            if not (phone_clean.startswith('0') or phone_clean.startswith('+972') or 
+                   (phone_clean.startswith('972') and len(phone_clean) >= 12)):
+                # Check digit count
+                digits_only = re.sub(r'[^\d]', '', phone)
+                if len(digits_only) < 9 or len(digits_only) > 10:
+                    invalid_removed += 1
+                    continue
+                # If name suggests URL, skip it
+                if name and any(word in name.lower() for word in ['http', 'www', 'com', 'posts', 'story', 'reel', 'maps']):
+                    invalid_removed += 1
+                    continue
+        
+        filtered_recs.append(rec)
+    
+    unique_recs = filtered_recs
+    print(f"  Removed {invalid_removed} invalid recommendations")
+    print(f"  Valid recommendations: {len(unique_recs)}")
+    
     # Step 3: Clean and fix names
     print("\nStep 3: Cleaning names...")
     names_fixed = 0
