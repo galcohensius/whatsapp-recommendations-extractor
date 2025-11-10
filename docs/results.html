@@ -147,6 +147,38 @@
             background: #c82333;
         }
 
+        .export-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .export-btn {
+            padding: 10px 20px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .export-btn:hover {
+            background: #218838;
+        }
+
+        .export-btn.google-sheets {
+            background: #34a853;
+        }
+
+        .export-btn.google-sheets:hover {
+            background: #2d8f47;
+        }
+
         .table-container {
             overflow-x: auto;
             max-height: 70vh;
@@ -395,6 +427,14 @@
                 <button class="group-toggle" id="group-toggle">
                     קיבוץ לפי שירות
                 </button>
+                <div class="export-buttons">
+                    <button class="export-btn" id="download-csv-btn">
+                        📥 הורד CSV
+                    </button>
+                    <button class="export-btn google-sheets" id="export-google-sheets-btn">
+                        📊 ייצא ל-Google Sheets
+                    </button>
+                </div>
             </div>
 
             <div class="controls-row">
@@ -961,6 +1001,179 @@
             savePreferences();
             renderTable();
         });
+
+        // Export functions
+        function getTableHeaders() {
+            const table = document.getElementById('recommendations-table');
+            if (!table) return [];
+            
+            const headerRow = table.querySelector('thead tr');
+            if (!headerRow) return [];
+            
+            const headers = [];
+            headerRow.querySelectorAll('th').forEach(th => {
+                // Get text content, removing sort indicators
+                let text = th.textContent.trim();
+                // Remove sort indicators (↕, ↑, ↓)
+                text = text.replace(/[↕↑↓]/g, '').trim();
+                if (text) {
+                    headers.push({
+                        text: text,
+                        column: th.dataset.column || ''
+                    });
+                }
+            });
+            
+            return headers;
+        }
+
+        function getDataRow(rec, headers) {
+            const row = [];
+            headers.forEach(header => {
+                const column = header.column;
+                let value = '';
+                
+                switch(column) {
+                    case 'service':
+                        value = rec.service || '';
+                        break;
+                    case 'name':
+                        value = rec.name || '';
+                        break;
+                    case 'phone':
+                        value = rec.phone || '';
+                        break;
+                    case 'date':
+                        value = formatDate(rec.date) || '';
+                        break;
+                    case 'recommender':
+                        value = rec.recommender || '';
+                        break;
+                    case 'context':
+                        value = rec.context || '';
+                        break;
+                    default:
+                        // If no data-column attribute, try to match by header text
+                        if (header.text === 'שירות') value = rec.service || '';
+                        else if (header.text === 'שם') value = rec.name || '';
+                        else if (header.text === 'טלפון') value = rec.phone || '';
+                        else if (header.text === 'תאריך') value = formatDate(rec.date) || '';
+                        else if (header.text === 'ממליץ') value = rec.recommender || '';
+                        else if (header.text === 'הקשר') value = rec.context || '';
+                }
+                
+                row.push(escapeCSV(value));
+            });
+            
+            return row;
+        }
+
+        function downloadCSV() {
+            if (filteredRecommendations.length === 0) {
+                alert('אין נתונים לייצוא');
+                return;
+            }
+
+            // Get headers from table
+            const headers = getTableHeaders();
+            if (headers.length === 0) {
+                alert('לא ניתן לקרוא את כותרות הטבלה');
+                return;
+            }
+
+            // Extract header texts for CSV
+            const headerTexts = headers.map(h => h.text);
+            const csvRows = [headerTexts.join(',')];
+
+            // Add data rows
+            filteredRecommendations.forEach(rec => {
+                const row = getDataRow(rec, headers);
+                csvRows.push(row.join(','));
+            });
+
+            // Create CSV content with BOM for Hebrew support
+            const csvContent = '\uFEFF' + csvRows.join('\n');
+            
+            // Create download link
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `recommendations_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+
+        function escapeCSV(text) {
+            if (!text) return '';
+            // Replace newlines and quotes
+            text = String(text).replace(/"/g, '""');
+            // Wrap in quotes if contains comma, newline, or quote
+            if (text.includes(',') || text.includes('\n') || text.includes('"')) {
+                return `"${text}"`;
+            }
+            return text;
+        }
+
+        function exportToGoogleSheets() {
+            if (filteredRecommendations.length === 0) {
+                alert('אין נתונים לייצוא');
+                return;
+            }
+
+            // Get headers from table
+            const headers = getTableHeaders();
+            if (headers.length === 0) {
+                alert('לא ניתן לקרוא את כותרות הטבלה');
+                return;
+            }
+
+            // Extract header texts for CSV
+            const headerTexts = headers.map(h => h.text);
+            const csvRows = [headerTexts.join(',')];
+
+            // Add data rows
+            filteredRecommendations.forEach(rec => {
+                const row = getDataRow(rec, headers);
+                csvRows.push(row.join(','));
+            });
+
+            const csvContent = '\uFEFF' + csvRows.join('\n');
+            
+            // Create blob and download
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `recommendations_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            // Open Google Sheets in new tab with instructions
+            setTimeout(() => {
+                const confirmed = confirm(
+                    'הקובץ הורד בהצלחה!\n\n' +
+                    'לחץ על "אישור" כדי לפתוח Google Sheets.\n' +
+                    'לאחר מכן:\n' +
+                    '1. לחץ על "קובץ" > "ייבוא"\n' +
+                    '2. בחר "העלה" ובחר את הקובץ שהורד\n' +
+                    '3. בחר "ייבוא נתונים" > "יצירת גיליון אלקטרוני חדש"\n' +
+                    '4. לחץ על "ייבוא נתונים"'
+                );
+                
+                if (confirmed) {
+                    window.open('https://sheets.google.com', '_blank');
+                }
+            }, 300);
+        }
+
+        // Event listeners for export buttons
+        document.getElementById('download-csv-btn').addEventListener('click', downloadCSV);
+        document.getElementById('export-google-sheets-btn').addEventListener('click', exportToGoogleSheets);
 
         // Load preferences and data on page load
         loadPreferences();
