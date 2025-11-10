@@ -8,9 +8,10 @@ const API_BASE_URL = 'https://whatsapp-recommendations-api.onrender.com';
 /**
  * Upload a zip file to the backend.
  * @param {File} file - The zip file to upload
+ * @param {Function} onProgress - Optional callback for upload progress (receives percentage 0-100)
  * @returns {Promise<{session_id: string, status: string}>}
  */
-async function uploadFile(file) {
+async function uploadFile(file, onProgress = null) {
     // Validate file size (5MB)
     const maxSize = 5 * 1024 * 1024; // 5MB in bytes
     if (file.size > maxSize) {
@@ -22,20 +23,51 @@ async function uploadFile(file) {
         throw new Error('Only .zip files are allowed');
     }
     
-    const formData = new FormData();
-    formData.append('file', file);
-    
-    const response = await fetch(`${API_BASE_URL}/api/upload`, {
-        method: 'POST',
-        body: formData
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        // Track upload progress
+        xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable && onProgress) {
+                const percentComplete = Math.round((e.loaded / e.total) * 100);
+                onProgress(percentComplete);
+            }
+        });
+        
+        // Handle completion
+        xhr.addEventListener('load', () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                    const response = JSON.parse(xhr.responseText);
+                    resolve(response);
+                } catch (e) {
+                    reject(new Error('Invalid response from server'));
+                }
+            } else {
+                try {
+                    const error = JSON.parse(xhr.responseText);
+                    reject(new Error(error.detail || `Upload failed with status ${xhr.status}`));
+                } catch (e) {
+                    reject(new Error(`Upload failed with status ${xhr.status}`));
+                }
+            }
+        });
+        
+        // Handle errors
+        xhr.addEventListener('error', () => {
+            reject(new Error('Network error during upload'));
+        });
+        
+        xhr.addEventListener('abort', () => {
+            reject(new Error('Upload was aborted'));
+        });
+        
+        // Start upload
+        xhr.open('POST', `${API_BASE_URL}/api/upload`);
+        xhr.send(formData);
     });
-    
-    if (!response.ok) {
-        const error = await response.json().catch(() => ({ detail: 'Upload failed' }));
-        throw new Error(error.detail || `Upload failed with status ${response.status}`);
-    }
-    
-    return await response.json();
 }
 
 /**

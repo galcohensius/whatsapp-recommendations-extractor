@@ -318,7 +318,15 @@
             hideStatus();
 
             try {
-                const result = await uploadFile(selectedFile);
+                // Upload with progress tracking
+                const result = await uploadFile(selectedFile, (percent) => {
+                    // Update progress bar in real-time
+                    progressFill.style.width = `${percent}%`;
+                    progressFill.textContent = `${percent}%`;
+                    if (percent < 100) {
+                        progressText.textContent = `מעלה קובץ... ${percent}%`;
+                    }
+                });
                 
                 // Show success
                 progressFill.style.width = '100%';
