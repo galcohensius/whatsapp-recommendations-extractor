@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>העלאת קבצים - Upload Files</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+            direction: rtl;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            background: #f8f9fa;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: #f0f0f0;
+        }
+
+        .upload-area.dragover {
+            border-color: #28a745;
+            background: #e7f3ff;
+        }
+
+        .upload-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+
+        .upload-text {
+            font-size: 1.2em;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .upload-hint {
+            font-size: 0.9em;
+            color: #999;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-top: 20px;
+        }
+
+        .btn:hover {
+            background: #5568d3;
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .progress-container {
+            margin-top: 30px;
+            display: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #e9ecef;
+            border-radius: 15px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .status-message {
+            text-align: center;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .status-message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status-message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .session-info {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .session-id {
+            font-family: monospace;
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            word-break: break-all;
+            margin: 10px 0;
+        }
+
+        .link-btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #28a745;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+
+        .link-btn:hover {
+            background: #218838;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📤 העלאת קבצים</h1>
+            <p>העלה קובץ ZIP עם קבצי WhatsApp ו-VCF</p>
+        </div>
+
+        <div class="content">
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📁</div>
+                <div class="upload-text">לחץ כאן או גרור קובץ ZIP</div>
+                <div class="upload-hint">גודל מקסימלי: 5MB</div>
+            </div>
+
+            <input type="file" id="fileInput" accept=".zip">
+
+            <div style="text-align: center;">
+                <button class="btn" id="uploadBtn" disabled>העלה קובץ</button>
+            </div>
+
+            <div class="progress-container" id="progressContainer">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill">0%</div>
+                </div>
+                <div id="progressText" style="text-align: center; color: #666;"></div>
+            </div>
+
+            <div class="status-message" id="statusMessage"></div>
+
+            <div class="session-info" id="sessionInfo">
+                <h3>העלאה הושלמה!</h3>
+                <p>מספר סשן:</p>
+                <div class="session-id" id="sessionId"></div>
+                <p>העיבוד מתבצע ברקע. לחץ על הכפתור למטה כדי לראות את התוצאות.</p>
+                <a href="#" class="link-btn" id="resultsLink">צפה בתוצאות</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="api.js"></script>
+    <script>
+        // Update API base URL if needed
+        // API_BASE_URL = 'https://your-backend-url.onrender.com';
+
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const statusMessage = document.getElementById('statusMessage');
+        const sessionInfo = document.getElementById('sessionInfo');
+        const sessionIdEl = document.getElementById('sessionId');
+        const resultsLink = document.getElementById('resultsLink');
+
+        let selectedFile = null;
+
+        // Click to select file
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        // File input change
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                selectedFile = e.target.files[0];
+                validateAndEnableUpload();
+            }
+        });
+
+        // Drag and drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            if (e.dataTransfer.files.length > 0) {
+                selectedFile = e.dataTransfer.files[0];
+                fileInput.files = e.dataTransfer.files;
+                validateAndEnableUpload();
+            }
+        });
+
+        function validateAndEnableUpload() {
+            if (!selectedFile) {
+                uploadBtn.disabled = true;
+                return;
+            }
+
+            // Validate file type
+            if (!selectedFile.name.endsWith('.zip')) {
+                showStatus('רק קבצי ZIP מותרים', 'error');
+                uploadBtn.disabled = true;
+                return;
+            }
+
+            // Validate file size (5MB)
+            const maxSize = 5 * 1024 * 1024;
+            if (selectedFile.size > maxSize) {
+                showStatus(`גודל הקובץ חורג מהמגבלה (5MB). הקובץ הוא ${(selectedFile.size / 1024 / 1024).toFixed(2)}MB`, 'error');
+                uploadBtn.disabled = true;
+                return;
+            }
+
+            uploadBtn.disabled = false;
+            showStatus(`קובץ נבחר: ${selectedFile.name} (${(selectedFile.size / 1024 / 1024).toFixed(2)}MB)`, 'info');
+        }
+
+        // Upload button click
+        uploadBtn.addEventListener('click', async () => {
+            if (!selectedFile) return;
+
+            uploadBtn.disabled = true;
+            progressContainer.style.display = 'block';
+            progressFill.style.width = '0%';
+            progressFill.textContent = '0%';
+            progressText.textContent = 'מעלה קובץ...';
+            sessionInfo.style.display = 'none';
+            hideStatus();
+
+            try {
+                const result = await uploadFile(selectedFile);
+                
+                // Show success
+                progressFill.style.width = '100%';
+                progressFill.textContent = '100%';
+                progressText.textContent = 'העלאה הושלמה!';
+                
+                // Show session info
+                sessionIdEl.textContent = result.session_id;
+                resultsLink.href = `results.html?session_id=${result.session_id}`;
+                sessionInfo.style.display = 'block';
+                
+                showStatus('הקובץ הועלה בהצלחה! העיבוד מתבצע ברקע.', 'success');
+                
+            } catch (error) {
+                progressContainer.style.display = 'none';
+                showStatus(`שגיאה: ${error.message}`, 'error');
+                uploadBtn.disabled = false;
+            }
+        });
+
+        function showStatus(message, type) {
+            statusMessage.textContent = message;
+            statusMessage.className = `status-message ${type}`;
+            statusMessage.style.display = 'block';
+        }
+
+        function hideStatus() {
+            statusMessage.style.display = 'none';
+        }
+    </script>
+</body>
+</html>
+

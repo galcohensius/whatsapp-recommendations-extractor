@@ -4,3 +4,7 @@
 # External dependencies:
 openai>=1.0.0
 
+# Backend API dependencies (if running backend)
+# For backend, install from backend/requirements.txt instead:
+# pip install -r backend/requirements.txt
+
