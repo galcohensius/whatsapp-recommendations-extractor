@@ -9,7 +9,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # Fix empty CORS_ORIGINS env var before pydantic_settings tries to parse it as JSON
 _cors_origins_env = os.environ.get('CORS_ORIGINS', '').strip()
 if not _cors_origins_env:
-    os.environ['CORS_ORIGINS'] = "https://galcohensius.github.io,http://localhost:8000"
+    os.environ['CORS_ORIGINS'] = "https://galcohensius.github.io,https://galcohensius.github.io/whatsapp-recommendations-extractor,http://localhost:8000"
 
 
 class Settings(BaseSettings):
@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = ""
     
     # CORS - comma-separated string that gets split into list
-    CORS_ORIGINS: str = "https://galcohensius.github.io,http://localhost:8000"
+    CORS_ORIGINS: str = "https://galcohensius.github.io,https://galcohensius.github.io/whatsapp-recommendations-extractor,http://localhost:8000"
     
     # Security
     SECRET_KEY: str = "change-me-in-production"
