@@ -206,7 +206,7 @@ This section covers deploying the FastAPI backend to Render for processing uploa
 3. Configure:
    - **Name**: `whatsapp-recommendations-api`
    - **Environment**: `Python 3`
-   - **Build Command**: `pip install -r backend/requirements.txt`
+   - **Build Command**: `pip install -r requirements.txt`
    - **Start Command**: `uvicorn backend.app:app --host 0.0.0.0 --port $PORT`
 4. Add Environment Variables:
    - `DATABASE_URL`: (from PostgreSQL service, Internal Database URL)
@@ -259,7 +259,7 @@ alembic upgrade head
 
 1. **Install dependencies:**
    ```bash
-   pip install -r backend/requirements.txt
+   pip install -r requirements.txt
    ```
 
 2. **Set up local PostgreSQL** (or use SQLite for testing):

@@ -1,10 +1,19 @@
 # Python version requirement: >= 3.8
 # (for typing support and pathlib features)
 
-# External dependencies:
+# Core dependencies (used by main.py CLI)
 openai>=1.0.0
 
-# Backend API dependencies (if running backend)
-# For backend, install from backend/requirements.txt instead:
-# pip install -r backend/requirements.txt
+# Backend API dependencies
+# FastAPI and server
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6
 
+# Database
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.9
+alembic>=1.12.0
+
+# Configuration
+pydantic-settings>=2.0.0
