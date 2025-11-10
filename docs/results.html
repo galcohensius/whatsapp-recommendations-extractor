@@ -179,6 +179,28 @@
             background: #2d8f47;
         }
 
+        .new-upload-btn {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+            text-decoration: none;
+            display: inline-block;
+            margin-right: 15px;
+        }
+
+        .new-upload-btn:hover {
+            background: #5568d3;
+        }
+
+        .header-actions {
+            margin-top: 15px;
+        }
+
         .table-container {
             overflow-x: auto;
             max-height: 70vh;
@@ -414,6 +436,11 @@
             <div class="stats">
                 <span id="total-count">טוען...</span> המלצות 
                 <span id="filtered-count" style="opacity: 0.7;"></span>
+            </div>
+            <div class="header-actions">
+                <a href="upload.html" class="new-upload-btn">
+                    📤 העלה קובץ חדש
+                </a>
             </div>
         </div>
 
