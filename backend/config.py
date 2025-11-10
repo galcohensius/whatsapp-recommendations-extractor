@@ -1,8 +1,15 @@
 """Configuration management for the backend API."""
 
+import os
 from pathlib import Path
 from typing import List
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+# Fix empty CORS_ORIGINS env var before pydantic_settings tries to parse it as JSON
+_cors_origins_env = os.environ.get('CORS_ORIGINS', '').strip()
+if not _cors_origins_env:
+    os.environ['CORS_ORIGINS'] = "https://galcohensius.github.io,http://localhost:8000"
 
 
 class Settings(BaseSettings):
@@ -34,9 +41,10 @@ class Settings(BaseSettings):
         """Get CORS origins as a list."""
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
     
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=True,
+    )
 
 
 # Global settings instance
