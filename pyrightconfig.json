@@ -1,6 +1,7 @@
 {
   "include": [
-    "src"
+    "src",
+    "backend"
   ],
   "exclude": [
     "**/__pycache__",
@@ -9,9 +10,12 @@
     ".venv"
   ],
   "extraPaths": [
-    "src"
+    "src",
+    "backend"
   ],
   "pythonVersion": "3.13",
-  "typeCheckingMode": "basic"
+  "typeCheckingMode": "basic",
+  "venvPath": ".",
+  "venv": "venv"
 }
 
