@@ -349,6 +349,39 @@
             text-align: center;
         }
 
+        .progress-container {
+            margin: 20px;
+            display: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #e9ecef;
+            border-radius: 15px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        .progress-text {
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+        }
+
         .service-group {
             margin-bottom: 20px;
         }
@@ -481,7 +514,13 @@
         </div>
 
         <div class="table-container">
-            <div id="loading" class="loading">טוען נתונים...</div>
+            <div id="loading" class="loading" style="display: none;">טוען נתונים...</div>
+            <div id="progress-container" class="progress-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill">0%</div>
+                </div>
+                <div class="progress-text" id="progress-text">מתחיל עיבוד...</div>
+            </div>
             <div id="status-message" class="status-message" style="display: none;"></div>
             <div id="error-message" class="error-message" style="display: none;"></div>
             <div id="no-results" class="no-results" style="display: none;">
@@ -608,6 +647,7 @@
             errorEl.style.display = 'block';
             document.getElementById('loading').style.display = 'none';
             document.getElementById('status-message').style.display = 'none';
+            document.getElementById('progress-container').style.display = 'none';
         }
 
         function showStatus(message) {
@@ -621,6 +661,25 @@
             document.getElementById('status-message').style.display = 'none';
         }
 
+        function showProgress(percent, text) {
+            const progressContainer = document.getElementById('progress-container');
+            const progressFill = document.getElementById('progress-fill');
+            const progressText = document.getElementById('progress-text');
+            
+            progressContainer.style.display = 'block';
+            progressFill.style.width = `${percent}%`;
+            progressFill.textContent = percent < 100 ? `${percent}%` : '';
+            progressText.textContent = text || 'מעבד...';
+            
+            // Hide loading and status when showing progress
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('status-message').style.display = 'none';
+        }
+
+        function hideProgress() {
+            document.getElementById('progress-container').style.display = 'none';
+        }
+
         async function loadRecommendations() {
             if (!sessionId) {
                 showError('מספר סשן לא נמצא. אנא חזור לדף ההעלאה.');
@@ -628,23 +687,38 @@
             }
 
             try {
-                // First, check status
-                showStatus('בודק סטטוס עיבוד...');
+                // Show initial loading state
+                document.getElementById('total-count').textContent = 'טוען...';
+                showProgress(10, 'בודק סטטוס עיבוד...');
+                
                 const status = await getStatus(sessionId);
                 
                 if (status.status === 'pending' || status.status === 'processing') {
-                    // Poll for completion
-                    showStatus(`מעבד... (סטטוס: ${status.status === 'pending' ? 'ממתין' : 'מעבד'})`);
+                    // Show progress bar and poll for completion
+                    const startTime = Date.now();
+                    const maxTime = 30 * 60 * 1000; // 30 minutes
+                    let pollCount = 0;
+                    
+                    showProgress(20, status.status === 'pending' ? 'ממתין לעיבוד...' : 'מעבד את הקבצים...');
                     
                     try {
                         await pollStatus(sessionId, (statusUpdate) => {
-                            if (statusUpdate.status === 'processing') {
-                                showStatus('מעבד את הקבצים...');
+                            pollCount++;
+                            const elapsed = Date.now() - startTime;
+                            const progress = Math.min(20 + Math.floor((elapsed / maxTime) * 70), 90);
+                            
+                            let statusText = 'מעבד את הקבצים...';
+                            if (statusUpdate.status === 'pending') {
+                                statusText = 'ממתין לעיבוד...';
+                            } else if (statusUpdate.status === 'processing') {
+                                statusText = 'מעבד את הקבצים...';
                             }
+                            
+                            showProgress(progress, statusText);
                         });
                         
                         // Status is now completed, fetch results
-                        showStatus('טוען תוצאות...');
+                        showProgress(95, 'טוען תוצאות...');
                         const results = await getResults(sessionId);
                         
                         recommendations = results.recommendations;
@@ -653,8 +727,10 @@
                         applyFiltersAndRender();
                         updateSortIndicator();
                         
-                        document.getElementById('loading').style.display = 'none';
-                        hideStatus();
+                        showProgress(100, 'הושלם!');
+                        setTimeout(() => {
+                            hideProgress();
+                        }, 500);
                         
                         // Show OpenAI enhancement indicator if applicable
                         if (results.openai_enhanced) {
@@ -670,7 +746,7 @@
                     
                 } else if (status.status === 'completed') {
                     // Fetch results directly
-                    showStatus('טוען תוצאות...');
+                    showProgress(90, 'טוען תוצאות...');
                     const results = await getResults(sessionId);
                     
                     recommendations = results.recommendations;
@@ -679,8 +755,10 @@
                     applyFiltersAndRender();
                     updateSortIndicator();
                     
-                    document.getElementById('loading').style.display = 'none';
-                    hideStatus();
+                    showProgress(100, 'הושלם!');
+                    setTimeout(() => {
+                        hideProgress();
+                    }, 500);
                     
                     // Show OpenAI enhancement indicator if applicable
                     if (results.openai_enhanced) {
@@ -698,6 +776,7 @@
                 
             } catch (error) {
                 console.error('Error loading recommendations:', error);
+                hideProgress();
                 
                 if (error.message.includes('expired')) {
                     showError('התוצאות פגו. אנא העלה את הקבצים מחדש.');
@@ -710,9 +789,11 @@
         }
 
         function updateStats() {
-            document.getElementById('total-count').textContent = recommendations.length;
+            if (recommendations.length > 0) {
+                document.getElementById('total-count').textContent = recommendations.length;
+            }
             const filteredCount = filteredRecommendations.length;
-            if (filteredCount < recommendations.length) {
+            if (filteredCount < recommendations.length && recommendations.length > 0) {
                 document.getElementById('filtered-count').textContent = 
                     `(מוצגים: ${filteredCount})`;
             } else {
