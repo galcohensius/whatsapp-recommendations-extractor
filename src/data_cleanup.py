@@ -48,10 +48,27 @@ def clean_service_text(service: str) -> str:
     Examples:
     - "לכם המלצה על מוביל טוב" -> "מוביל"
     - "המלצה על X" -> "X"
-    - "מומלץ X" -> "X"
+    - "המלצה לנגר" -> "נגר"
+    - "למשהו מספר של חשמלאי" -> "חשמלאי"
+    - "מספר טלפון של שיפוצניק" -> "שיפוצניק"
+    - "במקרה נהג מונית..." -> "נהג מונית"
     """
     if not service:
         return service
+    
+    # If service is very long (>100 chars), try to extract first meaningful service keyword
+    # This handles cases like "בבקשה המלצות ל 2 בעלי מקצוע איש מזגנים..."
+    if len(service) > 100:
+        # Try to find service keywords in the text
+        service_keywords = [
+            r'אינסטלטור', r'חשמלאי', r'גנן', r'נגר', r'מזגנים?', r'דוד\s+שמש',
+            r'מוביל', r'נהג\s+מונית', r'קבלן', r'שיפוצניק', r'מסגר', r'אלומיניום',
+            r'טכנאי\s+\S+', r'מתקין\s+\S+', r'מדביר', r'ריסוס', r'דלתות',
+        ]
+        for keyword_pattern in service_keywords:
+            match = re.search(keyword_pattern, service, re.IGNORECASE)
+            if match:
+                return match.group(0).strip()
     
     # First, try to extract service from patterns like "לכם המלצה על X" or "לכם המלצה על X טוב"
     # Pattern: "לכם המלצה על [service] [optional adjective]"
@@ -60,14 +77,95 @@ def clean_service_text(service: str) -> str:
     if match:
         return match.group(1).strip()
     
+    # Pattern: "המלצה ל[service]" or "המלצה לנגר" -> extract service
+    # This handles: "המלצה לנגר", "המלצה לטכנאי מזגנים", "המלצה למדביר", etc.
+    pattern_simple_recommendation = r'^המלצה\s+ל([^\s]+(?:\s+[^\s]+)?(?:\s+[^\s]+)?)(?:\s+טוב|\s+מעולה|\s+מצוין|\s+אמין|\s+מקצועי|\s+מסודר|\s+.*)?\s*$'
+    match = re.search(pattern_simple_recommendation, service, re.IGNORECASE)
+    if match:
+        extracted = match.group(1).strip()
+        # Remove trailing adjectives, descriptive text, and conversational words
+        extracted = re.sub(r'\s+(טוב|מעולה|מצוין|נהדר|מצויין|אמין|מקצועי|מסודר|מקצוען|טוב\s+וישר|תודה|המלצה|דחוף|לסייע\s+לי).*$', '', extracted, flags=re.IGNORECASE)
+        # Remove very long trailing text (keep only first 30 chars if too long)
+        if len(extracted) > 30:
+            words = extracted.split()
+            # Take first 2-3 words max
+            extracted = ' '.join(words[:3])
+        if len(extracted) >= 2:
+            return extracted
+    
+    # Pattern: "המלצה [service]" (without ל) -> extract service
+    pattern_recommendation_no_lamed = r'^המלצה\s+([^\s]+(?:\s+[^\s]+)?)(?:\s+תודה|\s+.*)?\s*$'
+    match = re.search(pattern_recommendation_no_lamed, service, re.IGNORECASE)
+    if match:
+        extracted = match.group(1).strip()
+        # Remove trailing conversational words
+        extracted = re.sub(r'\s+(תודה|המלצה|דחוף|לסייע\s+לי).*$', '', extracted, flags=re.IGNORECASE)
+        if len(extracted) >= 2:
+            return extracted
+    
     # Pattern: "לכם המלצה על [service]"
     pattern_simple = r'^לכם\s+המלצה\s+על\s+(.+?)\s*$'
     match = re.search(pattern_simple, service, re.IGNORECASE)
     if match:
         extracted = match.group(1).strip()
         # Remove trailing adjectives like "טוב", "מעולה", "מצוין"
-        extracted = re.sub(r'\s+(טוב|מעולה|מצוין|נהדר|מצויין)\s*$', '', extracted, flags=re.IGNORECASE)
+        extracted = re.sub(r'\s+(טוב|מעולה|מצוין|נהדר|מצויין|אמין|מקצועי|מסודר|מקצוען)\s*$', '', extracted, flags=re.IGNORECASE)
         return extracted
+    
+    # Pattern: "למשהו מספר של [service]" -> extract service
+    pattern_phone_request = r'^למשהו\s+מספר\s+של\s+([^\s]+(?:\s+[^\s]+)?)\s*$'
+    match = re.search(pattern_phone_request, service, re.IGNORECASE)
+    if match:
+        return match.group(1).strip()
+    
+    # Pattern: "מספר טלפון של [service]" -> extract service
+    pattern_phone_of = r'^מספר\s+טלפון\s+של\s+([^\s]+(?:\s+[^\s]+)?)\s*$'
+    match = re.search(pattern_phone_of, service, re.IGNORECASE)
+    if match:
+        return match.group(1).strip()
+    
+    # Pattern: "במקרה [service]..." -> extract service (e.g., "במקרה נהג מונית...")
+    pattern_in_case = r'^במקרה\s+([^\s]+(?:\s+[^\s]+)?)(?:\s+.*)?$'
+    match = re.search(pattern_in_case, service, re.IGNORECASE)
+    if match:
+        service_candidate = match.group(1).strip()
+        # Check if it's a valid service (not just "כלוב" or other non-service words)
+        service_keywords = [r'נהג\s+מונית', r'מוביל', r'טכנאי', r'מתקין', r'אינסטלטור', r'חשמלאי']
+        for keyword in service_keywords:
+            if re.search(keyword, service_candidate, re.IGNORECASE):
+                # Extract the full service phrase
+                full_match = re.search(keyword + r'(?:\s+\S+)*', service, re.IGNORECASE)
+                if full_match:
+                    return full_match.group(0).strip()
+        # If no service keyword found, return the first part anyway if it's reasonable
+        if len(service_candidate) >= 3 and len(service_candidate) < 30:
+            return service_candidate
+    
+    # Pattern: "מקום שמוכר ומתקין [service]" -> extract service
+    pattern_place_sells = r'^מקום\s+שמוכר\s+(?:ומתקין\s+)?([^\s]+(?:\s+[^\s]+)?)\s*$'
+    match = re.search(pattern_place_sells, service, re.IGNORECASE)
+    if match:
+        return match.group(1).strip()
+    
+    # Pattern: "מקצוע [service]" or "מקצוע טוב ל[service]" -> extract service
+    pattern_profession = r'^מקצוע\s+(?:טוב\s+ל)?([^\s]+(?:\s+[^\s]+)?)(?:\s+.*)?$'
+    match = re.search(pattern_profession, service, re.IGNORECASE)
+    if match:
+        service_candidate = match.group(1).strip()
+        if len(service_candidate) >= 2 and len(service_candidate) < 50:
+            return service_candidate
+    
+    # Pattern: "שמטפל ב[service]" -> extract service
+    pattern_treats = r'^שמטפל\s+ב([^\s]+(?:\s+[^\s]+)?)\s*$'
+    match = re.search(pattern_treats, service, re.IGNORECASE)
+    if match:
+        return match.group(1).strip()
+    
+    # Pattern: "שמתקן [service]" -> extract service
+    pattern_fixes = r'^שמתקן\s+(?:מתעסק\s+עם\s+)?([^\s]+(?:\s+[^\s]+)?)\s*$'
+    match = re.search(pattern_fixes, service, re.IGNORECASE)
+    if match:
+        return match.group(1).strip()
     
     # Remove common Hebrew prefixes
     patterns = [
@@ -76,9 +174,20 @@ def clean_service_text(service: str) -> str:
         r'^למישהו\s+',
         r'^מישהו\s+',
         r'^המלצה\s+על?\s*',
+        r'^המלצה\s+טובה\s+ל',
         r'^המלצות?\s*',
         r'^למישהו\s+במקרה\s+',
         r'^מומלץ\s+',
+        r'^בסופו\s+של\s+יום\s+ב\s+\d+\s+שח\s+מקבלים\s+מה\s+שעולה\s+פה\s+\d+\s*',  # Remove price comparison text
+        r'^רלוונטי\s*$',  # "רלוונטי" alone should be cleaned (but might need context)
+        r'^מקום\s+ש',  # "מקום ש" (place that)
+        r'^מקום\s+שמוכר\s+ומתקין\s+',  # "מקום שמוכר ומתקין" (place that sells and installs)
+        r'^מקום\s+שמוכר\s+',  # "מקום שמוכר" (place that sells)
+        r'^מספר\s+טלפון\s+',  # "מספר טלפון" (phone number)
+        r'^מקצוע\s+',  # "מקצוע" (profession)
+        r'^מקצוענות\s+',  # "מקצוענות" (professionalism)
+        r'^דחוף\s*',  # "דחוף" (urgent) at start
+        r'https?://[^\s]*',  # URLs starting with http/https
     ]
     
     cleaned = service
@@ -88,7 +197,32 @@ def clean_service_text(service: str) -> str:
     # Remove trailing conversational suffixes
     cleaned = re.sub(r'\s+מניסיון.*$', '', cleaned, flags=re.IGNORECASE)
     cleaned = re.sub(r'\s+מומלץ.*$', '', cleaned, flags=re.IGNORECASE)
-    cleaned = re.sub(r'\s+(טוב|מעולה|מצוין|נהדר|מצויין)\s*$', '', cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r'\s+(טוב|מעולה|מצוין|נהדר|מצויין|אמין|מקצועי|מסודר|מקצוען)\s*$', '', cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r'\s+דחוף\s*$', '', cleaned, flags=re.IGNORECASE)  # "דחוף" at end
+    cleaned = re.sub(r'\s+לסייע\s+לי\s*$', '', cleaned, flags=re.IGNORECASE)  # "לסייע לי" at end
+    cleaned = re.sub(r'\s+תודה\s*$', '', cleaned, flags=re.IGNORECASE)  # "תודה" at end
+    cleaned = re.sub(r'\s+המלצה\s*$', '', cleaned, flags=re.IGNORECASE)  # "המלצה" at end
+    cleaned = re.sub(r'\s+מקצוענות\s*$', '', cleaned, flags=re.IGNORECASE)  # "מקצוענות" at end
+    cleaned = re.sub(r'\s+מקצוע\s*$', '', cleaned, flags=re.IGNORECASE)  # "מקצוע" at end
+    cleaned = re.sub(r'\s+https?://[^\s]*', '', cleaned, flags=re.IGNORECASE)  # URLs anywhere
+    
+    # Remove very long descriptive text at the end (keep first 50 chars if result is too long)
+    cleaned = cleaned.strip()
+    if len(cleaned) > 50:
+        # Try to find a service keyword in the first part
+        words = cleaned.split()
+        if len(words) > 5:
+            # Take first few words that might be the service
+            for i in range(1, min(5, len(words))):
+                candidate = ' '.join(words[:i])
+                if len(candidate) <= 30:
+                    # Check if it contains a service keyword
+                    service_keywords = [r'טכנאי', r'מתקין', r'אינסטלטור', r'חשמלאי', r'גנן', r'נגר', r'מוביל', r'קבלן']
+                    for keyword in service_keywords:
+                        if re.search(keyword, candidate, re.IGNORECASE):
+                            return candidate
+            # If no service keyword found, just return first 3-4 words
+            return ' '.join(words[:4])
     
     return cleaned.strip()
 

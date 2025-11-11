@@ -401,27 +401,39 @@ def extract_service_from_context(text: str, chat_message_index: Optional[int] = 
         r'צריך ([^?]+)',
         r'המלצה ל([^?]+)',
         r'מי מכיר ([^?]+)',
+        r'בבקשה המלצות? ל([^?]+)',
+        r'למישהו ([^?]+)',
     ]
     
     # First, check if there's a question in the current or recent messages
     if all_messages and chat_message_index is not None:
-        # Look at current message and up to 2 previous messages
-        for i in range(max(0, chat_message_index - 2), chat_message_index + 1):
+        # Look at current message and up to 3 previous messages for better context
+        for i in range(max(0, chat_message_index - 3), chat_message_index + 1):
             msg_text = all_messages[i]['text']
             for pattern in question_patterns:
                 match = re.search(pattern, msg_text, re.IGNORECASE)
                 if match:
                     service_candidate = match.group(1).strip()
-                    # Clean up the candidate
+                    # Clean up the candidate - remove common prefixes
+                    service_candidate = re.sub(r'^(איש|בעל מקצוע|טכנאי|מתקין)\s+', '', service_candidate, flags=re.IGNORECASE)
                     service_candidate = re.sub(r'[^\w\sא-ת]', '', service_candidate).strip()
-                    if len(service_candidate) >= 3:
+                    # Limit length to avoid extracting too much
+                    if len(service_candidate) >= 3 and len(service_candidate) <= 40:
+                        # Further clean if it's too long - take first few words
+                        if len(service_candidate) > 30:
+                            words = service_candidate.split()
+                            service_candidate = ' '.join(words[:3])
                         return service_candidate
     
     # Look for explicit mentions like "מומלץ ל...", "המלצה ל..."
     explicit_patterns = [
         r'מומלץ ל([^\.\n]{3,30})',
         r'המלצה ל([^\.\n]{3,30})',
+        r'המלצה על ([^\.\n]{3,30})',
         r'איש ([^\.\n]{3,30})',
+        r'טכנאי ([^\.\n]{3,30})',
+        r'מתקין ([^\.\n]{3,30})',
+        r'בעל מקצוע ([^\.\n]{3,30})',
     ]
     for pattern in explicit_patterns:
         match = re.search(pattern, text, re.IGNORECASE)
@@ -429,7 +441,11 @@ def extract_service_from_context(text: str, chat_message_index: Optional[int] = 
             service = match.group(1).strip()
             # Clean up
             service = re.sub(r'[^\w\sא-ת]', '', service).strip()
-            if len(service) >= 3:
+            # Limit length
+            if len(service) >= 3 and len(service) <= 40:
+                if len(service) > 30:
+                    words = service.split()
+                    service = ' '.join(words[:3])
                 return service
     
     return None
