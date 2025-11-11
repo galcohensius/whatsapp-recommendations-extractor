@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="he" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>המלצות - Recommendations</title>
+    <title>WhatsApp Recommendations</title>
     <style>
         * {
             margin: 0;
@@ -16,7 +16,7 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             padding: 20px;
             min-height: 100vh;
-            direction: rtl;
+            direction: ltr;
         }
 
         .container {
@@ -169,7 +169,7 @@
 
         th {
             padding: 15px 12px;
-            text-align: right;
+            text-align: left;
             font-weight: 600;
             white-space: nowrap;
             cursor: pointer;
@@ -358,9 +358,9 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>📋 המלצות מהווטצאפ</h1>
+            <h1>📋 WhatsApp Recommendations</h1>
             <div class="stats">
-                <span id="total-count">טוען...</span> המלצות 
+                <span id="total-count">Loading...</span> recommendations 
                 <span id="filtered-count" style="opacity: 0.7;"></span>
             </div>
         </div>
@@ -371,43 +371,43 @@
                     type="text" 
                     id="search-input" 
                     class="search-box" 
-                    placeholder="חפש לפי שם, שירות, טלפון, ממליץ...">
+                    placeholder="Search by name, service, phone, recommender...">
                 <button class="group-toggle" id="group-toggle">
-                    קיבוץ לפי שירות
+                    Group by Service
                 </button>
             </div>
 
             <div class="controls-row">
                 <div class="date-filter">
-                    <label>מתאריך:</label>
+                    <label>From Date:</label>
                     <input type="date" id="date-from" class="date-input">
-                    <label>עד תאריך:</label>
+                    <label>To Date:</label>
                     <input type="date" id="date-to" class="date-input">
                     <div class="quick-filters">
-                        <button class="filter-btn" data-quick="month">חודש אחרון</button>
-                        <button class="filter-btn" data-quick="6months">6 חודשים</button>
-                        <button class="filter-btn" data-quick="year">שנה אחרונה</button>
-                        <button class="filter-btn active" data-quick="all">הכל</button>
+                        <button class="filter-btn" data-quick="month">Last Month</button>
+                        <button class="filter-btn" data-quick="6months">6 Months</button>
+                        <button class="filter-btn" data-quick="year">Last Year</button>
+                        <button class="filter-btn active" data-quick="all">All</button>
                     </div>
                 </div>
             </div>
         </div>
 
         <div class="table-container">
-            <div id="loading" class="loading">טוען נתונים...</div>
+            <div id="loading" class="loading">Loading data...</div>
             <div id="no-results" class="no-results" style="display: none;">
-                לא נמצאו תוצאות
+                No results found
             </div>
             <div id="table-wrapper" style="display: none;">
                 <table id="recommendations-table">
                     <thead>
                         <tr>
-                            <th class="sortable" data-column="service">שירות</th>
-                            <th class="sortable" data-column="name">שם</th>
-                            <th class="sortable" data-column="phone">טלפון</th>
-                            <th class="sortable" data-column="date">תאריך</th>
-                            <th class="sortable" data-column="recommender">ממליץ</th>
-                            <th data-column="context">הקשר</th>
+                            <th class="sortable" data-column="service">Service</th>
+                            <th class="sortable" data-column="name">Name</th>
+                            <th class="sortable" data-column="phone">Phone</th>
+                            <th class="sortable" data-column="date">Date</th>
+                            <th class="sortable" data-column="recommender">Recommender</th>
+                            <th data-column="context">Context</th>
                         </tr>
                     </thead>
                     <tbody id="table-body">
@@ -431,7 +431,7 @@
             if (savedGroup === 'true') {
                 isGrouped = true;
                 document.getElementById('group-toggle').classList.add('active');
-                document.getElementById('group-toggle').textContent = 'בטל קיבוץ';
+                document.getElementById('group-toggle').textContent = 'Ungroup';
             }
         }
 
@@ -519,7 +519,7 @@
                 })
                 .catch(error => {
                     console.error('Error loading recommendations:', error);
-                    document.getElementById('loading').textContent = 'שגיאה בטעינת הנתונים';
+                    document.getElementById('loading').textContent = 'Error loading data';
                 });
         }
 
@@ -528,7 +528,7 @@
             const filteredCount = filteredRecommendations.length;
             if (filteredCount < recommendations.length) {
                 document.getElementById('filtered-count').textContent = 
-                    `(מוצגים: ${filteredCount})`;
+                    `(Showing: ${filteredCount})`;
             } else {
                 document.getElementById('filtered-count').textContent = '';
             }
@@ -632,7 +632,7 @@
             const grouped = {};
             
             filteredRecommendations.forEach(rec => {
-                const service = rec.service || 'ללא שירות';
+                const service = rec.service || 'No Service';
                 if (!grouped[service]) {
                     grouped[service] = [];
                 }
@@ -676,12 +676,12 @@
             const container = document.getElementById('grouped-content');
             container.innerHTML = '';
 
-            // Sort groups by service name, with "ללא שירות" at the bottom
+            // Sort groups by service name, with "No Service" at the bottom
             const sortedGroups = Object.keys(grouped).sort((a, b) => {
-                const noService = 'ללא שירות';
+                const noService = 'No Service';
                 if (a === noService && b !== noService) return 1;  // a goes to bottom
                 if (a !== noService && b === noService) return -1; // b goes to bottom
-                return a.localeCompare(b, 'he'); // Normal Hebrew-aware sort
+                return a.localeCompare(b, 'en'); // Normal alphabetical sort
             });
 
             sortedGroups.forEach(service => {
@@ -698,11 +698,11 @@
                         <table>
                             <thead>
                                 <tr>
-                                    <th>שם</th>
-                                    <th>טלפון</th>
-                                    <th>תאריך</th>
-                                    <th class="recommender-col">ממליץ</th>
-                                    <th>הקשר</th>
+                                    <th>Name</th>
+                                    <th>Phone</th>
+                                    <th>Date</th>
+                                    <th class="recommender-col">Recommender</th>
+                                    <th>Context</th>
                                 </tr>
                             </thead>
                             <tbody id="group-${escapeHtml(service)}-body">
@@ -731,7 +731,7 @@
         }
 
         function createRowHTML(rec, skipService = false) {
-            const name = rec.name || 'ללא שם';
+            const name = rec.name || 'No Name';
             const phone = formatPhone(rec.phone);
             const phoneLink = getTelLink(rec.phone);
             const service = rec.service || '';
@@ -834,10 +834,10 @@
             isGrouped = !isGrouped;
             if (isGrouped) {
                 this.classList.add('active');
-                this.textContent = 'בטל קיבוץ';
+                this.textContent = 'Ungroup';
             } else {
                 this.classList.remove('active');
-                this.textContent = 'קיבוץ לפי שירות';
+                this.textContent = 'Group by Service';
             }
             savePreferences();
             renderTable();
