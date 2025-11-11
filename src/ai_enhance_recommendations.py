@@ -4,6 +4,7 @@
 
 import json
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -589,11 +590,41 @@ def enhance_null_services_with_openai(
                 all_enhanced_null.extend(batch)
         
         # Merge back into original recommendations list
-        # Create a map of null service recs by phone+name for quick lookup
+        # Helper function to normalize phone for matching
+        def normalize_phone(phone):
+            """Normalize phone number for matching (remove formatting)"""
+            if not phone:
+                return ''
+            # Remove all non-digit characters except +
+            normalized = re.sub(r'[^\d+]', '', str(phone))
+            # Remove leading +972 and replace with 0
+            if normalized.startswith('+972'):
+                normalized = '0' + normalized[4:]
+            elif normalized.startswith('972'):
+                normalized = '0' + normalized[3:]
+            return normalized
+        
+        # Helper function to normalize name for matching
+        def normalize_name(name):
+            """Normalize name for matching"""
+            if not name:
+                return ''
+            return str(name).strip().lower()
+        
+        # Create a map of null service recs by normalized phone+name for quick lookup
         null_service_map = {}
+        null_service_map_by_phone = {}  # Fallback: match by phone only
+        
         for rec in all_enhanced_null:
-            key = (rec.get('phone', ''), rec.get('name', ''))
+            phone = normalize_phone(rec.get('phone', ''))
+            name = normalize_name(rec.get('name', ''))
+            key = (phone, name)
             null_service_map[key] = rec
+            # Also index by phone only for fallback matching
+            if phone:
+                if phone not in null_service_map_by_phone:
+                    null_service_map_by_phone[phone] = []
+                null_service_map_by_phone[phone].append(rec)
         
         # Helper function for case-insensitive field lookup
         def get_field(rec, field_name):
@@ -626,13 +657,35 @@ def enhance_null_services_with_openai(
         # Count null services before update
         null_before = sum(1 for r in recommendations if not r.get('service'))
         
+        # Track matching statistics
+        matched_exact = 0
+        matched_by_phone = 0
+        unmatched = 0
+        
         # Update original recommendations
         updated_recommendations = []
         for rec in recommendations:
             if not rec.get('service'):
-                key = (rec.get('phone', ''), rec.get('name', ''))
+                phone = normalize_phone(rec.get('phone', ''))
+                name = normalize_name(rec.get('name', ''))
+                key = (phone, name)
+                enhanced_rec = None
+                match_type = None
+                
+                # Try exact match first
                 if key in null_service_map:
                     enhanced_rec = null_service_map[key]
+                    match_type = 'exact'
+                    matched_exact += 1
+                # Fallback: match by phone only (if only one candidate)
+                elif phone and phone in null_service_map_by_phone:
+                    candidates = null_service_map_by_phone[phone]
+                    if len(candidates) == 1:
+                        enhanced_rec = candidates[0]
+                        match_type = 'phone_only'
+                        matched_by_phone += 1
+                
+                if enhanced_rec:
                     # Update service (occupation) from enhanced version using case-insensitive lookup
                     service = get_field(enhanced_rec, 'service')
                     if service:
@@ -661,24 +714,35 @@ def enhance_null_services_with_openai(
                                 name_part = parts[0].strip()
                                 phone_part = parts[1].strip()
                                 # Skip if name is a known default (user's own name)
-                                default_names = ['גאל כהנסיוס', 'gal cohensius', 'Gal Cohensius', 'GAL COHENSIUS', 
+                                default_names = ['גל כהנסיוס', 'gal cohensius', 'Gal Cohensius', 'GAL COHENSIUS', 
                                                'Unknown', 'unknown', 'UNKNOWN']
                                 if name_part.lower() not in [n.lower() for n in default_names]:
                                     # Valid name found, use it
                                     rec['recommender'] = enhanced_recommender
-                                # If name is a default, preserve original phone number (don't replace with "גאל כהנסיוס - phone")
+                                # If name is a default, preserve original phone number (don't replace with "גל כהנסיוס - phone")
                                 # Original recommender is already the sender phone number, so keep it
                         elif not orig_recommender or orig_recommender == 'Unknown':
                             # No original recommender, use enhanced (but validate it's not a default)
-                            default_names = ['גאל כהנסיוס', 'gal cohensius']
-                            if enhanced_recommender.lower() not in [n.lower() for n in default_names]:
-                                rec['recommender'] = enhanced_recommender
+                                default_names = ['גל כהנסיוס', 'gal cohensius']
+                                if enhanced_recommender.lower() not in [n.lower() for n in default_names]:
+                                    rec['recommender'] = enhanced_recommender
+                else:
+                    # No match found - this recommendation was likely filtered by OpenAI
+                    unmatched += 1
             updated_recommendations.append(rec)
         
         # Count null services after update
         null_after = sum(1 for r in updated_recommendations if not r.get('service'))
         extracted_count = null_before - null_after
+        
+        # Enhanced logging
+        print(f"    ✓ Matching statistics:")
+        print(f"      - Exact matches (phone+name): {matched_exact}")
+        print(f"      - Phone-only matches: {matched_by_phone}")
+        print(f"      - Unmatched (filtered by OpenAI): {unmatched}")
         print(f"    ✓ Extracted services for {extracted_count} recommendations")
+        if unmatched > 0:
+            print(f"    ⚠ Warning: {unmatched} recommendations were not matched (likely filtered by OpenAI)")
         
         return {
             'enhanced': updated_recommendations,
@@ -803,16 +867,16 @@ def merge_enhancements(original: List[Dict], enhanced: List[Dict]) -> List[Dict]
                         name_part = parts[0].strip()
                         phone_part = parts[1].strip()
                         # Skip if name is a known default (user's own name)
-                        default_names = ['גאל כהנסיוס', 'gal cohensius', 'Gal Cohensius', 'GAL COHENSIUS', 
+                        default_names = ['גל כהנסיוס', 'gal cohensius', 'Gal Cohensius', 'GAL COHENSIUS', 
                                        'Unknown', 'unknown', 'UNKNOWN']
                         if name_part.lower() not in [n.lower() for n in default_names]:
                             # Valid name found, use it
                             merged_rec['recommender'] = enhanced_recommender
-                        # If name is a default, preserve original phone number (don't replace with "גאל כהנסיוס - phone")
+                        # If name is a default, preserve original phone number (don't replace with "גל כהנסיוס - phone")
                         # Original recommender is already the sender phone number, so keep it
                 elif not orig_recommender or orig_recommender == 'Unknown':
                     # No original recommender, use enhanced (but validate it's not a default)
-                    default_names = ['גאל כהנסיוס', 'gal cohensius']
+                    default_names = ['גל כהנסיוס', 'gal cohensius']
                     if enhanced_recommender.lower() not in [n.lower() for n in default_names]:
                         merged_rec['recommender'] = enhanced_recommender
             
