@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="he" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>העלאת קבצים - Upload Files</title>
+    <title>File Upload - WhatsApp Recommendations Extractor</title>
     <style>
         * {
             margin: 0;
@@ -16,7 +16,7 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             padding: 20px;
             min-height: 100vh;
-            direction: rtl;
+            direction: ltr;
         }
 
         .container {
@@ -80,6 +80,30 @@
             color: #999;
         }
 
+        .instructions {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-radius: 5px;
+        }
+
+        .instructions h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+
+        .instructions ol {
+            margin-left: 20px;
+            color: #555;
+            line-height: 1.8;
+        }
+
+        .instructions li {
+            margin-bottom: 8px;
+        }
+
         input[type="file"] {
             display: none;
         }
@@ -103,6 +127,21 @@
         .btn:disabled {
             background: #ccc;
             cursor: not-allowed;
+        }
+
+        .btn-cancel {
+            background: #dc3545;
+            margin-left: 10px;
+        }
+
+        .btn-cancel:hover {
+            background: #c82333;
+        }
+
+        .btn-group {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
         }
 
         .progress-container {
@@ -192,21 +231,35 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>📤 העלאת קבצים</h1>
-            <p>העלה קובץ ZIP עם קבצי WhatsApp ו-VCF</p>
+            <h1>📤 File Upload</h1>
+            <p>Upload a ZIP file with WhatsApp chat and VCF contact files</p>
         </div>
 
         <div class="content">
+            <div class="instructions">
+                <h3>📱 How to Export Your WhatsApp Chat:</h3>
+                <ol>
+                    <li>Open WhatsApp on your phone</li>
+                    <li>Go to <strong>Settings</strong> → <strong>Chats</strong> → <strong>Chat history</strong> → <strong>Export chat</strong></li>
+                    <li>Choose the chat you want to export</li>
+                    <li>Select <strong>"Without media"</strong></li>
+                    <li>Save the exported file</li>
+                    <li>Create a ZIP file containing the chat export and any VCF contact files</li>
+                    <li>Drag the ZIP file to the area below</li>
+                </ol>
+            </div>
+
             <div class="upload-area" id="uploadArea">
                 <div class="upload-icon">📁</div>
-                <div class="upload-text">לחץ כאן או גרור קובץ ZIP</div>
-                <div class="upload-hint">גודל מקסימלי: 5MB</div>
+                <div class="upload-text">Click here or drag ZIP file</div>
+                <div class="upload-hint">Maximum size: 5MB</div>
             </div>
 
             <input type="file" id="fileInput" accept=".zip">
 
-            <div style="text-align: center;">
-                <button class="btn" id="uploadBtn" disabled>העלה קובץ</button>
+            <div class="btn-group" id="buttonGroup" style="text-align: center;">
+                <button class="btn" id="uploadBtn" disabled>Upload File</button>
+                <button class="btn btn-cancel" id="cancelBtn" style="display: none;">Cancel Upload</button>
             </div>
 
             <div class="progress-container" id="progressContainer">
@@ -219,11 +272,11 @@
             <div class="status-message" id="statusMessage"></div>
 
             <div class="session-info" id="sessionInfo">
-                <h3>העלאה הושלמה!</h3>
-                <p>מספר סשן:</p>
+                <h3>Upload Complete!</h3>
+                <p>Session ID:</p>
                 <div class="session-id" id="sessionId"></div>
-                <p>העיבוד מתבצע ברקע. לחץ על הכפתור למטה כדי לראות את התוצאות.</p>
-                <a href="#" class="link-btn" id="resultsLink">צפה בתוצאות</a>
+                <p>Processing is running in the background. Click the button below to view results.</p>
+                <a href="#" class="link-btn" id="resultsLink">View Results</a>
             </div>
         </div>
     </div>
@@ -236,6 +289,7 @@
         const uploadArea = document.getElementById('uploadArea');
         const fileInput = document.getElementById('fileInput');
         const uploadBtn = document.getElementById('uploadBtn');
+        const cancelBtn = document.getElementById('cancelBtn');
         const progressContainer = document.getElementById('progressContainer');
         const progressFill = document.getElementById('progressFill');
         const progressText = document.getElementById('progressText');
@@ -245,6 +299,7 @@
         const resultsLink = document.getElementById('resultsLink');
 
         let selectedFile = null;
+        let uploadAbort = null;
 
         // Click to select file
         uploadArea.addEventListener('click', () => {
@@ -288,7 +343,7 @@
 
             // Validate file type
             if (!selectedFile.name.endsWith('.zip')) {
-                showStatus('רק קבצי ZIP מותרים', 'error');
+                showStatus('Only ZIP files are allowed', 'error');
                 uploadBtn.disabled = true;
                 return;
             }
@@ -296,13 +351,13 @@
             // Validate file size (5MB)
             const maxSize = 5 * 1024 * 1024;
             if (selectedFile.size > maxSize) {
-                showStatus(`גודל הקובץ חורג מהמגבלה (5MB). הקובץ הוא ${(selectedFile.size / 1024 / 1024).toFixed(2)}MB`, 'error');
+                showStatus(`File size exceeds limit (5MB). File is ${(selectedFile.size / 1024 / 1024).toFixed(2)}MB`, 'error');
                 uploadBtn.disabled = true;
                 return;
             }
 
             uploadBtn.disabled = false;
-            showStatus(`קובץ נבחר: ${selectedFile.name} (${(selectedFile.size / 1024 / 1024).toFixed(2)}MB)`, 'info');
+            showStatus(`File selected: ${selectedFile.name} (${(selectedFile.size / 1024 / 1024).toFixed(2)}MB)`, 'info');
         }
 
         // Upload button click
@@ -310,42 +365,78 @@
             if (!selectedFile) return;
 
             uploadBtn.disabled = true;
+            cancelBtn.style.display = 'inline-block';
             progressContainer.style.display = 'block';
             progressFill.style.width = '0%';
             progressFill.textContent = '0%';
-            progressText.textContent = 'מעלה קובץ...';
+            progressText.textContent = 'Uploading file...';
             sessionInfo.style.display = 'none';
             hideStatus();
 
             try {
-                // Upload with progress tracking
-                const result = await uploadFile(selectedFile, (percent) => {
+                // Upload with progress tracking and abort capability
+                const upload = uploadFile(selectedFile, (percent) => {
                     // Update progress bar in real-time
                     progressFill.style.width = `${percent}%`;
                     progressFill.textContent = `${percent}%`;
                     if (percent < 100) {
-                        progressText.textContent = `מעלה קובץ... ${percent}%`;
+                        progressText.textContent = `Uploading file... ${percent}%`;
                     }
                 });
+                
+                // Store abort function
+                uploadAbort = upload.abort;
+                
+                const result = await upload.promise;
+                
+                // Clear abort function on success
+                uploadAbort = null;
                 
                 // Show success
                 progressFill.style.width = '100%';
                 progressFill.textContent = '100%';
-                progressText.textContent = 'העלאה הושלמה!';
+                progressText.textContent = 'Upload complete!';
+                cancelBtn.style.display = 'none';
                 
                 // Show session info
                 sessionIdEl.textContent = result.session_id;
                 resultsLink.href = `results.html?session_id=${result.session_id}`;
                 sessionInfo.style.display = 'block';
                 
-                showStatus('הקובץ הועלה בהצלחה! העיבוד מתבצע ברקע.', 'success');
+                showStatus('File uploaded successfully! Processing is running in the background.', 'success');
                 
             } catch (error) {
-                progressContainer.style.display = 'none';
-                showStatus(`שגיאה: ${error.message}`, 'error');
-                uploadBtn.disabled = false;
+                // Don't show error if it was aborted by user
+                if (error.message === 'Upload was aborted') {
+                    resetUploadState();
+                    showStatus('Upload cancelled. You can select a new file to upload.', 'info');
+                } else {
+                    progressContainer.style.display = 'none';
+                    cancelBtn.style.display = 'none';
+                    showStatus(`Error: ${error.message}`, 'error');
+                    uploadBtn.disabled = false;
+                }
+                uploadAbort = null;
             }
         });
+
+        // Cancel button click
+        cancelBtn.addEventListener('click', () => {
+            if (uploadAbort) {
+                uploadAbort();
+                uploadAbort = null;
+            }
+        });
+
+        function resetUploadState() {
+            uploadBtn.disabled = false;
+            cancelBtn.style.display = 'none';
+            progressContainer.style.display = 'none';
+            progressFill.style.width = '0%';
+            progressFill.textContent = '0%';
+            progressText.textContent = '';
+            uploadAbort = null;
+        }
 
         function showStatus(message, type) {
             statusMessage.textContent = message;

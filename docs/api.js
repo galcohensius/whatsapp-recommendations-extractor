@@ -9,25 +9,31 @@ const API_BASE_URL = 'https://whatsapp-recommendations-api.onrender.com';
  * Upload a zip file to the backend.
  * @param {File} file - The zip file to upload
  * @param {Function} onProgress - Optional callback for upload progress (receives percentage 0-100)
- * @returns {Promise<{session_id: string, status: string}>}
+ * @returns {{promise: Promise<{session_id: string, status: string}>, abort: Function}} Object with promise and abort function
  */
-async function uploadFile(file, onProgress = null) {
+function uploadFile(file, onProgress = null) {
     // Validate file size (5MB)
     const maxSize = 5 * 1024 * 1024; // 5MB in bytes
     if (file.size > maxSize) {
-        throw new Error(`File size exceeds 5MB limit. File is ${(file.size / 1024 / 1024).toFixed(2)}MB`);
+        return {
+            promise: Promise.reject(new Error(`File size exceeds 5MB limit. File is ${(file.size / 1024 / 1024).toFixed(2)}MB`)),
+            abort: () => {}
+        };
     }
     
     // Validate file type
     if (!file.name.endsWith('.zip')) {
-        throw new Error('Only .zip files are allowed');
+        return {
+            promise: Promise.reject(new Error('Only .zip files are allowed')),
+            abort: () => {}
+        };
     }
     
-    return new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        const formData = new FormData();
-        formData.append('file', file);
-        
+    const xhr = new XMLHttpRequest();
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const promise = new Promise((resolve, reject) => {
         // Track upload progress
         xhr.upload.addEventListener('progress', (e) => {
             if (e.lengthComputable && onProgress) {
@@ -68,6 +74,13 @@ async function uploadFile(file, onProgress = null) {
         xhr.open('POST', `${API_BASE_URL}/api/upload`);
         xhr.send(formData);
     });
+    
+    return {
+        promise: promise,
+        abort: () => {
+            xhr.abort();
+        }
+    };
 }
 
 /**
