@@ -97,8 +97,8 @@ def process_upload_sync(session_id: str, zip_file_path: Path) -> Dict:
         unique_recs = []
         
         for rec in all_recommendations:
-            name = rec.get('name', '').strip()
-            phone = rec.get('phone', '').strip()
+            name = (rec.get('name') or '').strip()
+            phone = (rec.get('phone') or '').strip()
             phone_normalized = re_module.sub(r'[\s+\-()]', '', phone)
             
             key = (name.lower(), phone_normalized)

@@ -114,9 +114,9 @@ def is_personal_contact_only(rec: Dict, messages: Optional[List[Dict]] = None) -
     if rec.get('service'):
         return False
     
-    # Get context from recommendation
-    context = rec.get('context', '').lower()
-    name = rec.get('name', '').lower()
+    # Get context from recommendation (handle None values)
+    context = (rec.get('context') or '').lower()
+    name = (rec.get('name') or '').lower()
     
     # Personal relationship keywords (Hebrew)
     personal_keywords = [

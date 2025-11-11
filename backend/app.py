@@ -61,6 +61,7 @@ app.include_router(router)
 
 
 @app.get("/")
+@app.head("/")
 async def root():
     """Root endpoint."""
     return {

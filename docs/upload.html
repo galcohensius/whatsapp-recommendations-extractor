@@ -389,6 +389,9 @@
             sessionInfo.style.display = 'none';
             hideStatus();
             
+            // Hide upload area during upload
+            uploadArea.style.display = 'none';
+            
             // Start timer
             resetTimer();
             startTimer();
@@ -440,6 +443,7 @@
                 } else {
                     progressContainer.style.display = 'none';
                     cancelBtn.style.display = 'none';
+                    uploadArea.style.display = 'block'; // Show upload area again on error
                     showStatus(`Error: ${error.message}`, 'error');
                     uploadBtn.disabled = false;
                 }
@@ -464,6 +468,7 @@
             progressFill.style.width = '0%';
             progressFill.textContent = '0%';
             progressText.textContent = '';
+            uploadArea.style.display = 'block'; // Show upload area again
             uploadAbort = null;
         }
 
