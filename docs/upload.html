@@ -419,12 +419,17 @@
                 progressText.textContent = 'Upload complete!';
                 cancelBtn.style.display = 'none';
                 
-                // Show session info
+                // Show session info briefly, then redirect
                 sessionIdEl.textContent = result.session_id;
                 resultsLink.href = `results.html?session_id=${result.session_id}`;
                 sessionInfo.style.display = 'block';
                 
-                showStatus('File uploaded successfully! Processing is running in the background.', 'success');
+                showStatus('File uploaded successfully! Redirecting to results...', 'success');
+                
+                // Automatically redirect to results page after a short delay
+                setTimeout(() => {
+                    window.location.href = `results.html?session_id=${result.session_id}`;
+                }, 1500); // 1.5 second delay to show success message
                 
             } catch (error) {
                 stopTimer();

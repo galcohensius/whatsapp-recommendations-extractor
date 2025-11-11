@@ -45,6 +45,14 @@
             opacity: 0.9;
         }
 
+        .header .session-id {
+            font-size: 0.85em;
+            opacity: 0.8;
+            margin-top: 8px;
+            font-family: monospace;
+            word-break: break-all;
+        }
+
         .controls {
             padding: 25px;
             background: #f8f9fa;
@@ -477,6 +485,9 @@
                 <span id="total-count">Loading...</span> recommendations 
                 <span id="filtered-count" style="opacity: 0.7;"></span>
             </div>
+            <div class="session-id" id="header-session-id" style="display: none;">
+                Session ID: <span id="session-id-display"></span>
+            </div>
             <div class="header-actions">
                 <a href="upload.html" class="new-upload-btn">
                     📤 Upload New File
@@ -570,6 +581,12 @@
         // Get session ID from URL
         const urlParams = new URLSearchParams(window.location.search);
         const sessionId = urlParams.get('session_id');
+        
+        // Display session ID in header if available
+        if (sessionId) {
+            document.getElementById('session-id-display').textContent = sessionId;
+            document.getElementById('header-session-id').style.display = 'block';
+        }
 
         // Load preferences from localStorage
         function loadPreferences() {
