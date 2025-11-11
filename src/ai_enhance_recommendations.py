@@ -29,8 +29,18 @@ def build_enhancement_prompt_for_null_services(recommendations: List[Dict], mess
     prompt_parts = [
         "You are analyzing WhatsApp chat messages to extract OCCUPATIONS/SERVICES for recommendations.",
         "",
+        "CRITICAL: The 'service' field is the MOST IMPORTANT field. If service cannot be extracted, the entry should be removed.",
+        "",
         "For each recommendation below that has service=null, extract the OCCUPATION from the chat context.",
-        "The 'service' field should contain the person's OCCUPATION (e.g., 'מתקין מזגנים', 'חשמלאי', 'אינסטלטור', 'רופא', 'טכנאי מחשבים').",
+        "The 'service' field should contain ONLY the person's OCCUPATION/SERVICE NAME - NOT full sentences or conversational text.",
+        "",
+        "EXAMPLES of CORRECT service extraction:",
+        "  - 'מוביל' (NOT 'לכם המלצה על מוביל טוב')",
+        "  - 'חשמלאי' (NOT 'המלצה על חשמלאי מעולה')",
+        "  - 'מתקין מזגנים' (NOT 'מומלץ מתקין מזגנים')",
+        "  - 'אינסטלטור' (NOT 'יש לכם המלצה על אינסטלטור?')",
+        "",
+        "The 'service' field should contain the person's OCCUPATION (e.g., 'מתקין מזגנים', 'חשמלאי', 'אינסטלטור', 'רופא', 'טכנאי מחשבים', 'מוביל', 'גנן').",
         "Any other important information (quality of work, location hints, pricing, etc.) should be placed in the 'context' field.",
         "Enhance the 'recommender' field: The recommender is the SENDER of the message that attached this VCF file (their phone number).",
         "  Only update it to 'Name - Phone' format if you can find the NAME associated with that specific phone number in the chat context.",
@@ -39,11 +49,12 @@ def build_enhancement_prompt_for_null_services(recommendations: List[Dict], mess
         "IMPORTANT:",
         "- Return ALL recommendations in your response (even if unchanged)",
         "- Only update the 'service' field (with OCCUPATION) for recommendations where service is null",
+        "- Extract ONLY the service/occupation name - remove all conversational prefixes like 'לכם המלצה על', 'מומלץ', etc.",
         "- Update the 'context' field with any additional relevant information from the chat (work quality, location, pricing, etc.)",
         "- Update the 'recommender' field: Only if you can identify the NAME for the recommender's phone number in the chat, format as 'Name - Phone'",
         "- Use the exact same structure as input",
         "- Keep all other fields (name, phone, date, chat_message_index) exactly as provided",
-        "- If you cannot determine an occupation from context, leave service as null",
+        "- If you cannot determine an occupation from context, leave service as null (entry will be removed)",
         "",
         "RECOMMENDATIONS TO ENHANCE (service=null):",
         "="*80,
@@ -73,13 +84,15 @@ def build_enhancement_prompt_for_null_services(recommendations: List[Dict], mess
     prompt_parts.append("Requirements:")
     prompt_parts.append("- Return ALL recommendations in the same order")
     prompt_parts.append("- ONLY update the 'service' field (with OCCUPATION) for entries where service was null")
-    prompt_parts.append("- Extract OCCUPATION from the extended context (e.g., 'מתקין מזגנים', 'חשמלאי', 'אינסטלטור', 'רופא', 'טכנאי מחשבים', 'גנן', 'מתווך')")
+    prompt_parts.append("- Extract ONLY the OCCUPATION/SERVICE NAME from the extended context - NOT full sentences")
+    prompt_parts.append("  Examples: 'מוביל', 'חשמלאי', 'מתקין מזגנים', 'אינסטלטור', 'רופא', 'טכנאי מחשבים', 'גנן', 'מתווך'")
+    prompt_parts.append("  Remove conversational prefixes like 'לכם המלצה על', 'מומלץ', 'המלצה על' - extract just the service name")
     prompt_parts.append("- Update 'context' field with additional relevant information (work quality, location, pricing, specializations, etc.)")
     prompt_parts.append("- Update 'recommender' field: The recommender is the SENDER of the message (the phone number already in the field).")
     prompt_parts.append("  Only update to 'Name - Phone' format if you can find the NAME associated with that specific phone number in the chat context.")
     prompt_parts.append("  Do NOT guess names - if you cannot find the name for that phone number, keep the existing recommender value as-is.")
     prompt_parts.append("- Keep all other fields exactly as provided")
-    prompt_parts.append("- If occupation cannot be determined, leave service as null")
+    prompt_parts.append("- If occupation cannot be determined, leave service as null (entry will be removed)")
     
     return "\n".join(prompt_parts)
 
@@ -98,9 +111,17 @@ def build_enhancement_prompt(recommendations: List[Dict], messages: List[Dict], 
     prompt_parts = [
         "You are analyzing WhatsApp chat messages and contact files to extract and enhance business recommendations.",
         "",
+        "CRITICAL: The 'service' field is the MOST IMPORTANT field. Extract ONLY the service/occupation name - NOT full sentences.",
+        "",
         "For each recommendation below, I need you to:",
         "1. Extract OCCUPATION in the 'service' field ONLY when service is null (do NOT change existing service values)",
-        "2. The 'service' field should contain the person's OCCUPATION (e.g., 'מתקין מזגנים', 'חשמלאי', 'אינסטלטור', 'רופא', 'טכנאי מחשבים')",
+        "2. The 'service' field should contain ONLY the person's OCCUPATION/SERVICE NAME - NOT full sentences or conversational text.",
+        "",
+        "EXAMPLES of CORRECT service extraction:",
+        "  - 'מוביל' (NOT 'לכם המלצה על מוביל טוב')",
+        "  - 'חשמלאי' (NOT 'המלצה על חשמלאי מעולה')",
+        "  - 'מתקין מזגנים' (NOT 'מומלץ מתקין מזגנים')",
+        "",
         "3. For ALL entries (regardless of service value): Place other important information in the 'context' field (work quality, location, pricing, specializations, experience level, etc.)",
         "4. For ALL entries (regardless of service value): Enhance the 'recommender' field - The recommender is the SENDER of the message (their phone number is already in the field). Only update to 'Name - Phone' format if you can find the NAME associated with that specific phone number in the chat context. Do NOT guess names.",
         "5. Improve/correct existing fields (name, context, recommender) - but do NOT change existing service values",
@@ -115,6 +136,7 @@ def build_enhancement_prompt(recommendations: List[Dict], messages: List[Dict], 
         "- For ALL entries: Enhance 'recommender' field - Extract name from chat context and format as 'Name - Phone' when name is available",
         "- For ALL entries: Update 'context' field with additional relevant information",
         "- Only update 'service' field when it is null (do NOT change existing service values)",
+        "- When extracting service, extract ONLY the service/occupation name - remove conversational prefixes like 'לכם המלצה על', 'מומלץ', etc.",
         "- Only enhance/improve fields, don't remove valid data",
         "- 'service' = OCCUPATION only; other details go in 'context'",
         "",
@@ -147,7 +169,8 @@ def build_enhancement_prompt(recommendations: List[Dict], messages: List[Dict], 
     prompt_parts.append("Requirements:")
     prompt_parts.append("- Return ALL recommendations in the same order")
     prompt_parts.append("- Extract OCCUPATION in 'service' field ONLY when service is null (do NOT update existing service values)")
-    prompt_parts.append("- 'service' should contain only the occupation (e.g., 'מתקין מזגנים', 'חשמלאי', 'רופא')")
+    prompt_parts.append("- 'service' should contain ONLY the occupation/service name - NOT full sentences")
+    prompt_parts.append("  Examples: 'מוביל', 'חשמלאי', 'מתקין מזגנים', 'רופא' - remove prefixes like 'לכם המלצה על', 'מומלץ', etc.")
     prompt_parts.append("- For ALL entries (regardless of service value): Update 'context' field with additional relevant information (work quality, location, pricing, specializations, experience, etc.)")
     prompt_parts.append("- For ALL entries (regardless of service value): Enhance 'recommender' field - The recommender is the SENDER of the message (the phone number already in the field).")
     prompt_parts.append("  Only update to 'Name - Phone' format if you can find the NAME associated with that specific phone number in the chat context.")
@@ -291,7 +314,7 @@ def enhance_recommendations_with_openai(
                     messages=[
                         {
                             "role": "system",
-                            "content": "You are a helpful assistant that extracts and enhances business recommendations from chat messages. IMPORTANT: Only update the 'service' field when it is null - do NOT change existing service values. For ALL entries (regardless of service value), update the 'context' field with additional relevant information. For the 'recommender' field: The recommender is the SENDER of the message (their phone number is already in the field). Only update to 'Name - Phone' format if you can find the NAME associated with that specific phone number in the chat context. Do NOT guess names - if you cannot find the name, keep the existing recommender value. Always return valid JSON arrays."
+                            "content": "You are a helpful assistant that extracts and enhances business recommendations from chat messages. CRITICAL: The 'service' field is the MOST IMPORTANT field. Extract ONLY the service/occupation name (e.g., 'מוביל', 'חשמלאי') - NOT full sentences like 'לכם המלצה על מוביל טוב'. Remove conversational prefixes. IMPORTANT: Only update the 'service' field when it is null - do NOT change existing service values. For ALL entries (regardless of service value), update the 'context' field with additional relevant information. For the 'recommender' field: The recommender is the SENDER of the message (their phone number is already in the field). Only update to 'Name - Phone' format if you can find the NAME associated with that specific phone number in the chat context. Do NOT guess names - if you cannot find the name, keep the existing recommender value. Always return valid JSON arrays."
                         },
                         {
                             "role": "user",
@@ -384,9 +407,10 @@ def enhance_null_services_with_openai(
     messages: List[Dict],
     model: str = "gpt-4o-mini",
     api_key: Optional[str] = None,
-    batch_size: int = 50  # Smaller batches for extended context
+    batch_size: int = 50,  # Smaller batches for extended context
+    context_window: int = 10  # Number of messages before/after to include
 ) -> Dict:
-    """Second pass: Enhance only recommendations with service=null using extended context (±10 messages).
+    """Second pass: Enhance only recommendations with service=null using extended context.
     
     Args:
         recommendations: List of recommendation dictionaries (only those with service=None will be processed)
@@ -394,6 +418,7 @@ def enhance_null_services_with_openai(
         model: OpenAI model to use (default: gpt-4o-mini)
         api_key: OpenAI API key (if None, uses OPENAI_API_KEY env var)
         batch_size: Number of recommendations to process per batch (default: 50, smaller due to extended context)
+        context_window: Number of messages before/after to include (default: 10, can be increased to 20 for more context)
     
     Returns:
         Dictionary with:
@@ -415,7 +440,7 @@ def enhance_null_services_with_openai(
         }
     
     print(f"\n  Second pass: Extracting services for {len(null_service_recs)} recommendations with null service...")
-    print(f"    Using extended context (±10 messages per recommendation)")
+    print(f"    Using extended context (±{context_window} messages per recommendation)")
     
     # Get API key (same logic as main enhancement function)
     if api_key is None:
@@ -487,8 +512,8 @@ def enhance_null_services_with_openai(
             
             print(f"      Batch {batch_num + 1}/{total_batches} ({len(batch)} recommendations)...")
             
-            # Build prompt with extended context (±10 messages)
-            prompt = build_enhancement_prompt_for_null_services(batch, messages, context_window=10)
+            # Build prompt with extended context
+            prompt = build_enhancement_prompt_for_null_services(batch, messages, context_window=context_window)
             prompt_tokens = estimate_tokens(prompt)
             
             print(f"        Prompt: ~{prompt_tokens:,} tokens")

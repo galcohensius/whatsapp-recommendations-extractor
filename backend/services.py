@@ -133,8 +133,9 @@ def process_upload_sync(session_id: str, zip_file_path: Path) -> Dict:
         with open(temp_json, 'w', encoding='utf-8') as f:
             json.dump(unique_recs, f, ensure_ascii=False, indent=2)
         
-        fix_result = fix_recommendations(temp_json, temp_json)
+        fix_result = fix_recommendations(temp_json, temp_json, messages=all_messages)
         print(f"[{session_id}]   Fixed {fix_result.get('duplicates_removed', 0)} duplicates")
+        print(f"[{session_id}]   Removed {fix_result.get('personal_contacts_removed', 0)} personal contacts")
         
         # Reload fixed recommendations
         with open(temp_json, 'r', encoding='utf-8') as f:
@@ -157,17 +158,45 @@ def process_upload_sync(session_id: str, zip_file_path: Path) -> Dict:
                     recommendations = result['enhanced']
                     openai_enhanced = True
                     
-                    # Second pass: Extract services for null entries
+                    # Second pass: Extract services for null entries with extended context
                     null_count = sum(1 for r in recommendations if not r.get('service'))
                     if null_count > 0:
+                        print(f"[{session_id}]   Found {null_count} entries with null service, retrying with extended context...")
                         result2 = enhance_null_services_with_openai(
                             recommendations,
                             all_messages,
                             model="gpt-4o-mini",
-                            api_key=settings.OPENAI_API_KEY
+                            api_key=settings.OPENAI_API_KEY,
+                            batch_size=50,  # Smaller batches for extended context
+                            context_window=20  # Extended context window
                         )
                         if result2['success']:
                             recommendations = result2['enhanced']
+                            print(f"[{session_id}]   Extended context retry completed")
+                    
+                    # Step 9: Drop entries that still have null service after retry
+                    print(f"[{session_id}] Step 9: Dropping entries with null service...")
+                    before_count = len(recommendations)
+                    recommendations = [r for r in recommendations if r.get('service')]
+                    dropped_count = before_count - len(recommendations)
+                    if dropped_count > 0:
+                        print(f"[{session_id}]   Dropped {dropped_count} entries with null service")
+                    else:
+                        print(f"[{session_id}]   All entries have service")
+                    
+                    # Step 10: Final service text cleaning pass
+                    print(f"[{session_id}] Step 10: Final service text cleaning...")
+                    from data_cleanup import clean_service_text
+                    services_cleaned = 0
+                    for rec in recommendations:
+                        service = rec.get('service')
+                        if service and isinstance(service, str):
+                            cleaned = clean_service_text(service)
+                            if cleaned != service:
+                                rec['service'] = cleaned if cleaned else None
+                                services_cleaned += 1
+                    if services_cleaned > 0:
+                        print(f"[{session_id}]   Cleaned {services_cleaned} service fields")
                     
                     print(f"[{session_id}]   OpenAI enhancement completed")
                 else:

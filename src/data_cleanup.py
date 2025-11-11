@@ -43,9 +43,31 @@ def clean_context_text(context: str) -> str:
 
 
 def clean_service_text(service: str) -> str:
-    """Clean service field to remove conversational prefixes."""
+    """Clean service field to remove conversational prefixes and extract just the service name.
+    
+    Examples:
+    - "לכם המלצה על מוביל טוב" -> "מוביל"
+    - "המלצה על X" -> "X"
+    - "מומלץ X" -> "X"
+    """
     if not service:
         return service
+    
+    # First, try to extract service from patterns like "לכם המלצה על X" or "לכם המלצה על X טוב"
+    # Pattern: "לכם המלצה על [service] [optional adjective]"
+    pattern_full = r'^לכם\s+המלצה\s+על\s+([^\s]+(?:\s+[^\s]+)?)(?:\s+טוב|\s+מעולה|\s+מצוין)?\s*$'
+    match = re.search(pattern_full, service, re.IGNORECASE)
+    if match:
+        return match.group(1).strip()
+    
+    # Pattern: "לכם המלצה על [service]"
+    pattern_simple = r'^לכם\s+המלצה\s+על\s+(.+?)\s*$'
+    match = re.search(pattern_simple, service, re.IGNORECASE)
+    if match:
+        extracted = match.group(1).strip()
+        # Remove trailing adjectives like "טוב", "מעולה", "מצוין"
+        extracted = re.sub(r'\s+(טוב|מעולה|מצוין|נהדר|מצויין)\s*$', '', extracted, flags=re.IGNORECASE)
+        return extracted
     
     # Remove common Hebrew prefixes
     patterns = [
@@ -56,6 +78,7 @@ def clean_service_text(service: str) -> str:
         r'^המלצה\s+על?\s*',
         r'^המלצות?\s*',
         r'^למישהו\s+במקרה\s+',
+        r'^מומלץ\s+',
     ]
     
     cleaned = service
@@ -65,11 +88,77 @@ def clean_service_text(service: str) -> str:
     # Remove trailing conversational suffixes
     cleaned = re.sub(r'\s+מניסיון.*$', '', cleaned, flags=re.IGNORECASE)
     cleaned = re.sub(r'\s+מומלץ.*$', '', cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r'\s+(טוב|מעולה|מצוין|נהדר|מצויין)\s*$', '', cleaned, flags=re.IGNORECASE)
     
     return cleaned.strip()
 
 
-def fix_recommendations(input_file: Path, output_file: Optional[Path] = None) -> Dict:
+def is_personal_contact_only(rec: Dict, messages: Optional[List[Dict]] = None) -> bool:
+    """Check if a recommendation is a personal contact (friend/family) without service provider intent.
+    
+    Only returns True if BOTH conditions are met:
+    1. Service field is null (no service extracted)
+    2. Context suggests personal relationship without service provider intent
+    
+    Important: If service field exists (even if it mentions friend/family), keep the entry - 
+    service providers can be friends/family.
+    
+    Args:
+        rec: Recommendation dictionary
+        messages: Optional list of all messages for context lookup (if available)
+    
+    Returns:
+        True if it's clearly a personal contact recommendation, not a service provider
+    """
+    # If service exists, keep it - service providers can be friends/family
+    if rec.get('service'):
+        return False
+    
+    # Get context from recommendation
+    context = rec.get('context', '').lower()
+    name = rec.get('name', '').lower()
+    
+    # Personal relationship keywords (Hebrew)
+    personal_keywords = [
+        'חבר', 'חברה', 'חברים', 'חברות',  # friend(s)
+        'ידיד', 'ידידה', 'ידידים',  # friend(s)
+        'אבא', 'אמא', 'אב', 'אם',  # dad, mom
+        'אח', 'אחות', 'אחים', 'אחיות',  # brother(s), sister(s)
+        'בן', 'בת', 'ילדים',  # son, daughter, children
+        'משפחה', 'קרוב', 'קרובה', 'קרובים',  # family, relative(s)
+    ]
+    
+    # Service-related keywords (Hebrew) - if these appear, it's likely a service provider
+    service_keywords = [
+        'מומלץ', 'ממליץ', 'ממליצה', 'המלצה',  # recommended, recommendation
+        'עובד', 'עובדת', 'עובדים',  # worker(s)
+        'נותן שירות', 'נותנת שירות', 'נותני שירות',  # service provider(s)
+        'שירות', 'עבודה', 'עבודות',  # service, work
+        'מקצוע', 'מקצועי', 'מקצועית',  # profession, professional
+        'טכנאי', 'טכנאית',  # technician
+        'איש מקצוע', 'אשת מקצוע',  # professional
+        'ביצע', 'עשה', 'עשתה',  # performed, did
+        'תיקון', 'תיקונים', 'תיקן', 'תיקנה',  # repair(s), repaired
+        'התקנה', 'התקנות', 'התקין', 'התקינה',  # installation(s), installed
+    ]
+    
+    # Check if context contains personal relationship keywords
+    has_personal_keyword = any(keyword in context or keyword in name for keyword in personal_keywords)
+    
+    # Check if context contains service-related keywords
+    has_service_keyword = any(keyword in context for keyword in service_keywords)
+    
+    # Only mark as personal contact if:
+    # 1. Service is null (already checked above)
+    # 2. Has personal relationship keyword
+    # 3. Lacks service-related keywords
+    if has_personal_keyword and not has_service_keyword:
+        return True
+    
+    return False
+
+
+def fix_recommendations(input_file: Path, output_file: Optional[Path] = None, messages: Optional[List[Dict]] = None) -> Dict:
     """Fix issues in recommendations.json."""
     if output_file is None:
         output_file = input_file
@@ -292,6 +381,23 @@ def fix_recommendations(input_file: Path, output_file: Optional[Path] = None) ->
     else:
         print("  All phone numbers are valid (≥ 7 digits)")
     
+    # Step 5: Filter out personal contacts (friends/family without service provider intent)
+    print("\nStep 5: Filtering personal contacts...")
+    personal_contacts_removed = 0
+    service_provider_recs = []
+    
+    for rec in unique_recs:
+        if is_personal_contact_only(rec, messages):
+            personal_contacts_removed += 1
+        else:
+            service_provider_recs.append(rec)
+    
+    unique_recs = service_provider_recs
+    if personal_contacts_removed > 0:
+        print(f"  Removed {personal_contacts_removed} personal contact entries (friends/family without service)")
+    else:
+        print("  No personal contacts to remove")
+    
     # Save fixed recommendations
     print(f"\nSaving to {output_file}...")
     output_file.parent.mkdir(parents=True, exist_ok=True)
@@ -308,7 +414,8 @@ def fix_recommendations(input_file: Path, output_file: Optional[Path] = None) ->
         'services_extracted': services_extracted,
         'names_fixed': names_fixed,
         'names_set_to_unknown': names_set_to_unknown,
-        'phones_removed': phones_removed
+        'phones_removed': phones_removed,
+        'personal_contacts_removed': personal_contacts_removed
     }
 
 
@@ -339,5 +446,6 @@ if __name__ == '__main__':
     print(f"  Names fixed: {result['names_fixed']}")
     print(f"  Names set to Unknown: {result['names_set_to_unknown']}")
     print(f"  Entries removed (invalid phones): {result['phones_removed']}")
+    print(f"  Personal contacts removed: {result.get('personal_contacts_removed', 0)}")
     print("="*50)
 
