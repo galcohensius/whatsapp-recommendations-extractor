@@ -132,17 +132,18 @@ async function getResults(sessionId) {
  * Poll for status updates until processing is complete or timeout.
  * @param {string} sessionId - The session ID
  * @param {Function} onStatusUpdate - Callback function called on each status update
- * @param {number} maxPollingTime - Maximum time to poll in milliseconds (default: 30 minutes)
+ * @param {number} maxPollingTime - Maximum time to poll in milliseconds (default: 40 minutes - gives buffer after backend 30min timeout)
  * @param {number} pollInterval - Interval between polls in milliseconds (default: 2 seconds)
  * @returns {Promise<{status: string}>}
  */
-async function pollStatus(sessionId, onStatusUpdate = null, maxPollingTime = 30 * 60 * 1000, pollInterval = 2000) {
+async function pollStatus(sessionId, onStatusUpdate = null, maxPollingTime = 40 * 60 * 1000, pollInterval = 2000) {
     const startTime = Date.now();
     
     while (true) {
         const elapsed = Date.now() - startTime;
         if (elapsed > maxPollingTime) {
-            throw new Error('Polling timeout exceeded');
+            const minutes = Math.floor(maxPollingTime / 60000);
+            throw new Error(`Polling timeout exceeded after ${minutes} minutes. The processing may still be running on the server. Please refresh the page or try again later.`);
         }
         
         try {

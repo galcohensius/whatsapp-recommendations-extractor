@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="he" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>תוצאות - Results</title>
+    <title>Results - WhatsApp Recommendations</title>
     <style>
         * {
             margin: 0;
@@ -16,7 +16,7 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             padding: 20px;
             min-height: 100vh;
-            direction: rtl;
+            direction: ltr;
         }
 
         .container {
@@ -376,6 +376,13 @@
             font-size: 12px;
         }
 
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+        }
+
         .progress-text {
             text-align: center;
             color: #666;
@@ -465,14 +472,14 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>📋 המלצות מהווטצאפ</h1>
+            <h1>📋 WhatsApp Recommendations</h1>
             <div class="stats">
-                <span id="total-count">טוען...</span> המלצות 
+                <span id="total-count">Loading...</span> recommendations 
                 <span id="filtered-count" style="opacity: 0.7;"></span>
             </div>
             <div class="header-actions">
                 <a href="upload.html" class="new-upload-btn">
-                    📤 העלה קובץ חדש
+                    📤 Upload New File
                 </a>
             </div>
         </div>
@@ -483,59 +490,62 @@
                     type="text" 
                     id="search-input" 
                     class="search-box" 
-                    placeholder="חפש לפי שם, שירות, טלפון, ממליץ...">
+                    placeholder="Search by name, service, phone, recommender...">
                 <button class="group-toggle" id="group-toggle">
-                    קיבוץ לפי שירות
+                    Group by Service
                 </button>
                 <div class="export-buttons">
                     <button class="export-btn" id="download-csv-btn">
-                        📥 הורד CSV
+                        📥 Download CSV
                     </button>
                     <button class="export-btn google-sheets" id="export-google-sheets-btn">
-                        📊 ייצא ל-Google Sheets
+                        📊 Export to Google Sheets
                     </button>
                 </div>
             </div>
 
             <div class="controls-row">
                 <div class="date-filter">
-                    <label>מתאריך:</label>
+                    <label>From Date:</label>
                     <input type="date" id="date-from" class="date-input">
-                    <label>עד תאריך:</label>
+                    <label>To Date:</label>
                     <input type="date" id="date-to" class="date-input">
                     <div class="quick-filters">
-                        <button class="filter-btn" data-quick="month">חודש אחרון</button>
-                        <button class="filter-btn" data-quick="6months">6 חודשים</button>
-                        <button class="filter-btn" data-quick="year">שנה אחרונה</button>
-                        <button class="filter-btn active" data-quick="all">הכל</button>
+                        <button class="filter-btn" data-quick="month">Last Month</button>
+                        <button class="filter-btn" data-quick="6months">6 Months</button>
+                        <button class="filter-btn" data-quick="year">Last Year</button>
+                        <button class="filter-btn active" data-quick="all">All</button>
                     </div>
                 </div>
             </div>
         </div>
 
         <div class="table-container">
-            <div id="loading" class="loading" style="display: none;">טוען נתונים...</div>
+            <div id="loading" class="loading" style="display: none;">Loading data...</div>
             <div id="progress-container" class="progress-container">
                 <div class="progress-bar">
                     <div class="progress-fill" id="progress-fill">0%</div>
                 </div>
-                <div class="progress-text" id="progress-text">מתחיל עיבוד...</div>
+                <div class="progress-info">
+                    <div class="progress-text" id="progress-text">Starting processing...</div>
+                    <div class="progress-timer" id="progress-timer" style="color: #666; font-size: 0.9em; font-weight: 500;">00:00</div>
+                </div>
             </div>
             <div id="status-message" class="status-message" style="display: none;"></div>
             <div id="error-message" class="error-message" style="display: none;"></div>
             <div id="no-results" class="no-results" style="display: none;">
-                לא נמצאו תוצאות
+                No results found
             </div>
             <div id="table-wrapper" style="display: none;">
                 <table id="recommendations-table">
                     <thead>
                         <tr>
-                            <th class="sortable" data-column="service">שירות</th>
-                            <th class="sortable" data-column="name">שם</th>
-                            <th class="sortable" data-column="phone">טלפון</th>
-                            <th class="sortable" data-column="date">תאריך</th>
-                            <th class="sortable" data-column="recommender">ממליץ</th>
-                            <th data-column="context">הקשר</th>
+                            <th class="sortable" data-column="service">Service</th>
+                            <th class="sortable" data-column="name">Name</th>
+                            <th class="sortable" data-column="phone">Phone</th>
+                            <th class="sortable" data-column="date">Date</th>
+                            <th class="sortable" data-column="recommender">Recommender</th>
+                            <th data-column="context">Context</th>
                         </tr>
                     </thead>
                     <tbody id="table-body">
@@ -567,7 +577,7 @@
             if (savedGroup === 'true') {
                 isGrouped = true;
                 document.getElementById('group-toggle').classList.add('active');
-                document.getElementById('group-toggle').textContent = 'בטל קיבוץ';
+                document.getElementById('group-toggle').textContent = 'Ungroup';
             }
         }
 
@@ -661,6 +671,39 @@
             document.getElementById('status-message').style.display = 'none';
         }
 
+        let timerInterval = null;
+        let timerStartTime = null;
+
+        function formatTime(ms) {
+            const totalSeconds = Math.floor(ms / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+
+        function startTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+            timerStartTime = Date.now();
+            const timerElement = document.getElementById('progress-timer');
+            
+            timerInterval = setInterval(() => {
+                if (timerStartTime) {
+                    const elapsed = Date.now() - timerStartTime;
+                    timerElement.textContent = formatTime(elapsed);
+                }
+            }, 1000);
+        }
+
+        function stopTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+            timerStartTime = null;
+        }
+
         function showProgress(percent, text) {
             const progressContainer = document.getElementById('progress-container');
             const progressFill = document.getElementById('progress-fill');
@@ -669,7 +712,17 @@
             progressContainer.style.display = 'block';
             progressFill.style.width = `${percent}%`;
             progressFill.textContent = percent < 100 ? `${percent}%` : '';
-            progressText.textContent = text || 'מעבד...';
+            progressText.textContent = text || 'Processing...';
+            
+            // Start timer if not already running and progress is less than 100%
+            if (percent < 100 && !timerInterval) {
+                startTimer();
+            }
+            
+            // Stop timer when complete
+            if (percent >= 100) {
+                stopTimer();
+            }
             
             // Hide loading and status when showing progress
             document.getElementById('loading').style.display = 'none';
@@ -677,29 +730,34 @@
         }
 
         function hideProgress() {
+            stopTimer();
             document.getElementById('progress-container').style.display = 'none';
         }
 
         async function loadRecommendations() {
             if (!sessionId) {
-                showError('מספר סשן לא נמצא. אנא חזור לדף ההעלאה.');
+                showError('Session ID not found. Please return to the upload page.');
                 return;
             }
-
+            
+            // Reset timer for new load
+            stopTimer();
+            document.getElementById('progress-timer').textContent = '00:00';
+            
             try {
                 // Show initial loading state
-                document.getElementById('total-count').textContent = 'טוען...';
-                showProgress(10, 'בודק סטטוס עיבוד...');
+                document.getElementById('total-count').textContent = 'Loading...';
+                showProgress(10, 'Checking processing status...');
                 
                 const status = await getStatus(sessionId);
                 
                 if (status.status === 'pending' || status.status === 'processing') {
                     // Show progress bar and poll for completion
                     const startTime = Date.now();
-                    const maxTime = 30 * 60 * 1000; // 30 minutes
+                    const maxTime = 40 * 60 * 1000; // 40 minutes (backend timeout is 30 min, this gives buffer)
                     let pollCount = 0;
                     
-                    showProgress(20, status.status === 'pending' ? 'ממתין לעיבוד...' : 'מעבד את הקבצים...');
+                    showProgress(20, status.status === 'pending' ? 'Waiting for processing...' : 'Processing files...');
                     
                     try {
                         await pollStatus(sessionId, (statusUpdate) => {
@@ -707,18 +765,18 @@
                             const elapsed = Date.now() - startTime;
                             const progress = Math.min(20 + Math.floor((elapsed / maxTime) * 70), 90);
                             
-                            let statusText = 'מעבד את הקבצים...';
+                            let statusText = 'Processing files...';
                             if (statusUpdate.status === 'pending') {
-                                statusText = 'ממתין לעיבוד...';
+                                statusText = 'Waiting for processing...';
                             } else if (statusUpdate.status === 'processing') {
-                                statusText = 'מעבד את הקבצים...';
+                                statusText = 'Processing files...';
                             }
                             
                             showProgress(progress, statusText);
                         });
                         
                         // Status is now completed, fetch results
-                        showProgress(95, 'טוען תוצאות...');
+                        showProgress(95, 'Loading results...');
                         const results = await getResults(sessionId);
                         
                         recommendations = results.recommendations;
@@ -727,7 +785,7 @@
                         applyFiltersAndRender();
                         updateSortIndicator();
                         
-                        showProgress(100, 'הושלם!');
+                        showProgress(100, 'Complete!');
                         setTimeout(() => {
                             hideProgress();
                         }, 500);
@@ -736,17 +794,17 @@
                         if (results.openai_enhanced) {
                             const header = document.querySelector('.header .stats');
                             if (header) {
-                                header.innerHTML += ' <span style="opacity: 0.7;">(מוגבר עם AI)</span>';
+                                header.innerHTML += ' <span style="opacity: 0.7;">(Enhanced with AI)</span>';
                             }
                         }
                         
                     } catch (pollError) {
-                        showError(`שגיאה בעיבוד: ${pollError.message}`);
+                        showError(`Processing error: ${pollError.message}`);
                     }
                     
                 } else if (status.status === 'completed') {
                     // Fetch results directly
-                    showProgress(90, 'טוען תוצאות...');
+                    showProgress(90, 'Loading results...');
                     const results = await getResults(sessionId);
                     
                     recommendations = results.recommendations;
@@ -755,23 +813,23 @@
                     applyFiltersAndRender();
                     updateSortIndicator();
                     
-                    showProgress(100, 'הושלם!');
+                    showProgress(100, 'Complete!');
                     setTimeout(() => {
                         hideProgress();
                     }, 500);
                     
                     // Show OpenAI enhancement indicator if applicable
-                    if (results.openai_enhanced) {
-                        const header = document.querySelector('.header .stats');
-                        if (header) {
-                            header.innerHTML += ' <span style="opacity: 0.7;">(מוגבר עם AI)</span>';
+                        if (results.openai_enhanced) {
+                            const header = document.querySelector('.header .stats');
+                            if (header) {
+                                header.innerHTML += ' <span style="opacity: 0.7;">(Enhanced with AI)</span>';
+                            }
                         }
-                    }
                     
                 } else if (status.status === 'error' || status.status === 'timeout') {
-                    showError(`עיבוד נכשל: ${status.error_message || status.status}`);
+                    showError(`Processing failed: ${status.error_message || status.status}`);
                 } else {
-                    showError(`סטטוס לא ידוע: ${status.status}`);
+                    showError(`Unknown status: ${status.status}`);
                 }
                 
             } catch (error) {
@@ -779,11 +837,11 @@
                 hideProgress();
                 
                 if (error.message.includes('expired')) {
-                    showError('התוצאות פגו. אנא העלה את הקבצים מחדש.');
+                    showError('Results have expired. Please upload the files again.');
                 } else if (error.message.includes('not found')) {
-                    showError('סשן לא נמצא. אנא בדוק את מספר הסשן.');
+                    showError('Session not found. Please check the session ID.');
                 } else {
-                    showError(`שגיאה בטעינת הנתונים: ${error.message}`);
+                    showError(`Error loading data: ${error.message}`);
                 }
             }
         }
@@ -795,7 +853,7 @@
             const filteredCount = filteredRecommendations.length;
             if (filteredCount < recommendations.length && recommendations.length > 0) {
                 document.getElementById('filtered-count').textContent = 
-                    `(מוצגים: ${filteredCount})`;
+                    `(Showing: ${filteredCount})`;
             } else {
                 document.getElementById('filtered-count').textContent = '';
             }
@@ -899,7 +957,7 @@
             const grouped = {};
             
             filteredRecommendations.forEach(rec => {
-                const service = rec.service || 'ללא שירות';
+                const service = rec.service || 'No Service';
                 if (!grouped[service]) {
                     grouped[service] = [];
                 }
@@ -943,12 +1001,12 @@
             const container = document.getElementById('grouped-content');
             container.innerHTML = '';
 
-            // Sort groups by service name, with "ללא שירות" at the bottom
+            // Sort groups by service name, with "No Service" at the bottom
             const sortedGroups = Object.keys(grouped).sort((a, b) => {
-                const noService = 'ללא שירות';
+                const noService = 'No Service';
                 if (a === noService && b !== noService) return 1;  // a goes to bottom
                 if (a !== noService && b === noService) return -1; // b goes to bottom
-                return a.localeCompare(b, 'he'); // Normal Hebrew-aware sort
+                return a.localeCompare(b, 'en'); // Normal alphabetical sort
             });
 
             sortedGroups.forEach(service => {
@@ -965,11 +1023,11 @@
                         <table>
                             <thead>
                                 <tr>
-                                    <th>שם</th>
-                                    <th>טלפון</th>
-                                    <th>תאריך</th>
-                                    <th class="recommender-col">ממליץ</th>
-                                    <th>הקשר</th>
+                                    <th>Name</th>
+                                    <th>Phone</th>
+                                    <th>Date</th>
+                                    <th class="recommender-col">Recommender</th>
+                                    <th>Context</th>
                                 </tr>
                             </thead>
                             <tbody id="group-${escapeHtml(service)}-body">
@@ -998,7 +1056,7 @@
         }
 
         function createRowHTML(rec, skipService = false) {
-            const name = rec.name || 'ללא שם';
+            const name = rec.name || 'No Name';
             const phone = formatPhone(rec.phone);
             const phoneLink = getTelLink(rec.phone);
             const service = rec.service || '';
@@ -1101,10 +1159,10 @@
             isGrouped = !isGrouped;
             if (isGrouped) {
                 this.classList.add('active');
-                this.textContent = 'בטל קיבוץ';
+                this.textContent = 'Ungroup';
             } else {
                 this.classList.remove('active');
-                this.textContent = 'קיבוץ לפי שירות';
+                this.textContent = 'Group by Service';
             }
             savePreferences();
             renderTable();
@@ -1162,12 +1220,12 @@
                         break;
                     default:
                         // If no data-column attribute, try to match by header text
-                        if (header.text === 'שירות') value = rec.service || '';
-                        else if (header.text === 'שם') value = rec.name || '';
-                        else if (header.text === 'טלפון') value = rec.phone || '';
-                        else if (header.text === 'תאריך') value = formatDate(rec.date) || '';
-                        else if (header.text === 'ממליץ') value = rec.recommender || '';
-                        else if (header.text === 'הקשר') value = rec.context || '';
+                        if (header.text === 'Service') value = rec.service || '';
+                        else if (header.text === 'Name') value = rec.name || '';
+                        else if (header.text === 'Phone') value = rec.phone || '';
+                        else if (header.text === 'Date') value = formatDate(rec.date) || '';
+                        else if (header.text === 'Recommender') value = rec.recommender || '';
+                        else if (header.text === 'Context') value = rec.context || '';
                 }
                 
                 row.push(escapeCSV(value));
@@ -1178,14 +1236,14 @@
 
         function downloadCSV() {
             if (filteredRecommendations.length === 0) {
-                alert('אין נתונים לייצוא');
+                alert('No data to export');
                 return;
             }
 
             // Get headers from table
             const headers = getTableHeaders();
             if (headers.length === 0) {
-                alert('לא ניתן לקרוא את כותרות הטבלה');
+                alert('Cannot read table headers');
                 return;
             }
 
@@ -1227,14 +1285,14 @@
 
         function exportToGoogleSheets() {
             if (filteredRecommendations.length === 0) {
-                alert('אין נתונים לייצוא');
+                alert('No data to export');
                 return;
             }
 
             // Get headers from table
             const headers = getTableHeaders();
             if (headers.length === 0) {
-                alert('לא ניתן לקרוא את כותרות הטבלה');
+                alert('Cannot read table headers');
                 return;
             }
 
@@ -1264,13 +1322,13 @@
             // Open Google Sheets in new tab with instructions
             setTimeout(() => {
                 const confirmed = confirm(
-                    'הקובץ הורד בהצלחה!\n\n' +
-                    'לחץ על "אישור" כדי לפתוח Google Sheets.\n' +
-                    'לאחר מכן:\n' +
-                    '1. לחץ על "קובץ" > "ייבוא"\n' +
-                    '2. בחר "העלה" ובחר את הקובץ שהורד\n' +
-                    '3. בחר "ייבוא נתונים" > "יצירת גיליון אלקטרוני חדש"\n' +
-                    '4. לחץ על "ייבוא נתונים"'
+                    'File downloaded successfully!\n\n' +
+                    'Click "OK" to open Google Sheets.\n' +
+                    'Then:\n' +
+                    '1. Click "File" > "Import"\n' +
+                    '2. Select "Upload" and choose the downloaded file\n' +
+                    '3. Select "Import data" > "Create new spreadsheet"\n' +
+                    '4. Click "Import data"'
                 );
                 
                 if (confirmed) {
