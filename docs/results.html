@@ -724,14 +724,19 @@
                 stopTimer();
             }
             
-            // Hide loading and status when showing progress
+            // Hide loading, status, and no-results when showing progress
             document.getElementById('loading').style.display = 'none';
             document.getElementById('status-message').style.display = 'none';
+            document.getElementById('no-results').style.display = 'none';
+            document.getElementById('table-wrapper').style.display = 'none';
+            document.getElementById('grouped-content').style.display = 'none';
         }
 
         function hideProgress() {
             stopTimer();
             document.getElementById('progress-container').style.display = 'none';
+            // Ensure no-results is hidden when progress is hidden (will be shown by renderTable if needed)
+            document.getElementById('no-results').style.display = 'none';
         }
 
         async function loadRecommendations() {
@@ -743,6 +748,12 @@
             // Reset timer for new load
             stopTimer();
             document.getElementById('progress-timer').textContent = '00:00';
+            
+            // Hide any existing results/errors and show loading state
+            document.getElementById('no-results').style.display = 'none';
+            document.getElementById('table-wrapper').style.display = 'none';
+            document.getElementById('grouped-content').style.display = 'none';
+            document.getElementById('error-message').style.display = 'none';
             
             try {
                 // Show initial loading state
@@ -782,12 +793,13 @@
                         recommendations = results.recommendations;
                         filteredRecommendations = [...recommendations];
                         updateStats();
-                        applyFiltersAndRender();
-                        updateSortIndicator();
                         
                         showProgress(100, 'Complete!');
                         setTimeout(() => {
                             hideProgress();
+                            // Only render after progress is hidden
+                            applyFiltersAndRender();
+                            updateSortIndicator();
                         }, 500);
                         
                         // Show OpenAI enhancement indicator if applicable
@@ -810,12 +822,13 @@
                     recommendations = results.recommendations;
                     filteredRecommendations = [...recommendations];
                     updateStats();
-                    applyFiltersAndRender();
-                    updateSortIndicator();
                     
                     showProgress(100, 'Complete!');
                     setTimeout(() => {
                         hideProgress();
+                        // Only render after progress is hidden
+                        applyFiltersAndRender();
+                        updateSortIndicator();
                     }, 500);
                     
                     // Show OpenAI enhancement indicator if applicable
@@ -970,6 +983,12 @@
         function renderTable() {
             const tbody = document.getElementById('table-body');
             tbody.innerHTML = '';
+            
+            // Hide progress container when rendering (loading is complete)
+            const progressContainer = document.getElementById('progress-container');
+            if (progressContainer.style.display !== 'none') {
+                progressContainer.style.display = 'none';
+            }
 
             if (filteredRecommendations.length === 0) {
                 document.getElementById('no-results').style.display = 'block';

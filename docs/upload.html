@@ -170,6 +170,19 @@
             font-weight: bold;
         }
 
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .progress-timer {
+            color: #666;
+            font-size: 0.9em;
+            font-weight: 500;
+        }
+
         .status-message {
             text-align: center;
             padding: 15px;
@@ -264,7 +277,10 @@
                 <div class="progress-bar">
                     <div class="progress-fill" id="progressFill">0%</div>
                 </div>
-                <div id="progressText" style="text-align: center; color: #666;"></div>
+                <div class="progress-info">
+                    <div id="progressText" style="text-align: center; color: #666;"></div>
+                    <div class="progress-timer" id="progressTimer">00:00</div>
+                </div>
             </div>
 
             <div class="status-message" id="statusMessage"></div>
@@ -298,6 +314,8 @@
 
         let selectedFile = null;
         let uploadAbort = null;
+        let timerInterval = null;
+        let timerStartTime = null;
 
         // Click to select file
         uploadArea.addEventListener('click', () => {
@@ -370,6 +388,10 @@
             progressText.textContent = 'Uploading file...';
             sessionInfo.style.display = 'none';
             hideStatus();
+            
+            // Start timer
+            resetTimer();
+            startTimer();
 
             try {
                 // Upload with progress tracking and abort capability
@@ -391,6 +413,7 @@
                 uploadAbort = null;
                 
                 // Show success
+                stopTimer();
                 progressFill.style.width = '100%';
                 progressFill.textContent = '100%';
                 progressText.textContent = 'Upload complete!';
@@ -404,6 +427,7 @@
                 showStatus('File uploaded successfully! Processing is running in the background.', 'success');
                 
             } catch (error) {
+                stopTimer();
                 // Don't show error if it was aborted by user
                 if (error.message === 'Upload was aborted') {
                     resetUploadState();
@@ -427,6 +451,8 @@
         });
 
         function resetUploadState() {
+            stopTimer();
+            resetTimer();
             uploadBtn.disabled = false;
             cancelBtn.style.display = 'none';
             progressContainer.style.display = 'none';
@@ -444,6 +470,41 @@
 
         function hideStatus() {
             statusMessage.style.display = 'none';
+        }
+
+        function formatTime(ms) {
+            const totalSeconds = Math.floor(ms / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+
+        function startTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+            timerStartTime = Date.now();
+            const timerElement = document.getElementById('progressTimer');
+            
+            timerInterval = setInterval(() => {
+                if (timerStartTime) {
+                    const elapsed = Date.now() - timerStartTime;
+                    timerElement.textContent = formatTime(elapsed);
+                }
+            }, 1000);
+        }
+
+        function stopTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+            timerStartTime = null;
+        }
+
+        function resetTimer() {
+            stopTimer();
+            document.getElementById('progressTimer').textContent = '00:00';
         }
     </script>
 </body>
