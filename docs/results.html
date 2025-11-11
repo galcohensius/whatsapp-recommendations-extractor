@@ -725,11 +725,25 @@
             const progressContainer = document.getElementById('progress-container');
             const progressFill = document.getElementById('progress-fill');
             const progressText = document.getElementById('progress-text');
+            const totalCount = document.getElementById('total-count');
             
             progressContainer.style.display = 'block';
             progressFill.style.width = `${percent}%`;
             progressFill.textContent = percent < 100 ? `${percent}%` : '';
             progressText.textContent = text || 'Processing...';
+            
+            // Update header to match progress status
+            if (text) {
+                if (text.includes('Processing') || text.includes('Waiting')) {
+                    totalCount.textContent = 'Processing...';
+                } else if (text.includes('Loading results')) {
+                    totalCount.textContent = 'Loading results...';
+                } else if (text.includes('Checking')) {
+                    totalCount.textContent = 'Checking status...';
+                } else if (text.includes('Complete')) {
+                    totalCount.textContent = 'Complete!';
+                }
+            }
             
             // Start timer if not already running and progress is less than 100%
             if (percent < 100 && !timerInterval) {
@@ -774,7 +788,7 @@
             
             try {
                 // Show initial loading state
-                document.getElementById('total-count').textContent = 'Loading...';
+                document.getElementById('total-count').textContent = 'Checking status...';
                 showProgress(10, 'Checking processing status...');
                 
                 const status = await getStatus(sessionId);
