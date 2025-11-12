@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     MAX_FILE_SIZE: int = 5 * 1024 * 1024  # 5MB in bytes
     
     # Processing timeout (in seconds)
-    PROCESSING_TIMEOUT: int = 30 * 60  # 30 minutes
+    PROCESSING_TIMEOUT: int = 2 * 60 * 60  # 2 hours
     
     # Retention period (in days)
     RETENTION_DAYS: int = 1
