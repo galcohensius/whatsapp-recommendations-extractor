@@ -71,6 +71,7 @@ async def upload_file(
         
         # Update session status to processing
         session.status = "processing"  # type: ignore
+        session.progress_message = "Starting file processing..."  # type: ignore
         db.commit()
         
         # Start background processing task
@@ -121,6 +122,7 @@ async def process_upload_task(session_id: str, zip_file_path: Path):
             
             # Update session status
             session.status = "completed"  # type: ignore
+            session.progress_message = None  # type: ignore
             task_db.commit()
             
         except TimeoutError:
@@ -150,7 +152,8 @@ async def get_status(session_id: UUID, db: Session = Depends(get_db)):
     
     return StatusResponse(
         status=session.status,  # type: ignore
-        error_message=session.error_message  # type: ignore
+        error_message=session.error_message,  # type: ignore
+        progress_message=session.progress_message  # type: ignore
     )
 
 

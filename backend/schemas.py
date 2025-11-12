@@ -17,6 +17,7 @@ class StatusResponse(BaseModel):
     """Response schema for status check."""
     status: str
     error_message: Optional[str] = None
+    progress_message: Optional[str] = None
 
 
 class ResultsResponse(BaseModel):

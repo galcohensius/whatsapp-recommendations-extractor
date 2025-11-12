@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 import asyncio
 import signal
+from uuid import UUID
 
 # Add src directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -25,6 +26,29 @@ from ai_enhance_recommendations import (
     enhance_recommendations_with_openai
 )
 from backend.config import settings
+from backend.database import SessionLocal, Session as DBSession
+
+
+def update_progress_message(session_id: str, message: str) -> None:
+    """
+    Update the progress message for a session in the database.
+    
+    Args:
+        session_id: Session ID string
+        message: Progress message to set
+    """
+    try:
+        db = SessionLocal()
+        try:
+            session = db.query(DBSession).filter(DBSession.id == UUID(session_id)).first()
+            if session:
+                session.progress_message = message  # type: ignore
+                db.commit()
+        finally:
+            db.close()
+    except Exception as e:
+        # Don't fail processing if progress update fails
+        print(f"[{session_id}] Warning: Failed to update progress message: {e}")
 
 
 def process_upload_sync(session_id: str, zip_file_path: Path) -> Dict:
@@ -66,28 +90,34 @@ def process_upload_sync(session_id: str, zip_file_path: Path) -> Dict:
         
         # Parse files
         print(f"[{session_id}] Step 1: Parsing .vcf files...")
+        update_progress_message(session_id, "Parsing VCF contact files...")
         vcf_data = parse_all_vcf_files(vcf_dir)
         print(f"[{session_id}]   Found {len(vcf_data)} .vcf files")
         
         print(f"[{session_id}] Step 2: Parsing WhatsApp chat files...")
+        update_progress_message(session_id, "Parsing WhatsApp chat files...")
         all_messages = parse_all_chat_files(text_dir)
         print(f"[{session_id}]   Found {len(all_messages)} messages")
         
         # Extract recommendations
         print(f"[{session_id}] Step 3: Extracting text recommendations...")
+        update_progress_message(session_id, "Extracting text recommendations from chat...")
         text_recs = extract_text_recommendations(all_messages, vcf_data)
         print(f"[{session_id}]   Found {len(text_recs)} text recommendations")
         
         print(f"[{session_id}] Step 4: Extracting .vcf mentions from chat...")
+        update_progress_message(session_id, "Extracting VCF file mentions from chat...")
         vcf_mentions, mentioned_filenames = extract_vcf_mentions(all_messages, vcf_data)
         print(f"[{session_id}]   Found {len(vcf_mentions)} .vcf file mentions")
         
         print(f"[{session_id}] Step 5: Including unmentioned .vcf files...")
+        update_progress_message(session_id, "Including unmentioned VCF files...")
         unmentioned_vcf = include_unmentioned_vcf_files(vcf_data, mentioned_filenames)
         print(f"[{session_id}]   Found {len(unmentioned_vcf)} unmentioned .vcf files")
         
         # Merge all recommendations
         print(f"[{session_id}] Step 6: Merging all recommendations...")
+        update_progress_message(session_id, "Merging and deduplicating recommendations...")
         all_recommendations = text_recs + vcf_mentions + unmentioned_vcf
         
         # Remove duplicates (same logic as extract_recommendations)
@@ -127,6 +157,7 @@ def process_upload_sync(session_id: str, zip_file_path: Path) -> Dict:
         
         # Pre-enhancement cleanup
         print(f"[{session_id}] Step 7: Pre-enhancement cleanup...")
+        update_progress_message(session_id, f"Cleaning {len(unique_recs)} recommendations...")
         recommendations, cleanup_stats = pre_enhancement_cleanup(unique_recs, messages=all_messages)
         print(f"[{session_id}]   Fixed {cleanup_stats.get('duplicates_removed', 0)} duplicates")
         print(f"[{session_id}]   Removed {cleanup_stats.get('personal_contacts_removed', 0)} personal contacts")
@@ -135,8 +166,12 @@ def process_upload_sync(session_id: str, zip_file_path: Path) -> Dict:
         openai_enhanced = False
         if settings.OPENAI_API_KEY:
             print(f"[{session_id}] Step 8: Enhancing with OpenAI...")
+            null_count_before = sum(1 for r in recommendations if not r.get('service'))
+            update_progress_message(
+                session_id, 
+                f"Enhancing {len(recommendations)} recommendations with AI ({null_count_before} need service extraction)..."
+            )
             try:
-                null_count_before = sum(1 for r in recommendations if not r.get('service'))
                 print(f"[{session_id}]   {null_count_before} entries with null service (extended context)")
                 print(f"[{session_id}]   {len(recommendations) - null_count_before} entries with existing service (normal context)")
                 
@@ -154,19 +189,28 @@ def process_upload_sync(session_id: str, zip_file_path: Path) -> Dict:
                     extracted_count = null_count_before - null_count_after
                     print(f"[{session_id}]   Extracted services for {extracted_count} recommendations")
                     print(f"[{session_id}]   OpenAI enhancement completed")
+                    update_progress_message(
+                        session_id,
+                        f"AI enhancement complete: extracted services for {extracted_count} recommendations"
+                    )
                 else:
                     print(f"[{session_id}]   OpenAI enhancement failed: {result.get('error', 'Unknown error')}")
+                    update_progress_message(session_id, "AI enhancement failed, continuing with existing data...")
             except Exception as e:
                 print(f"[{session_id}]   OpenAI enhancement error: {e}")
+                update_progress_message(session_id, "AI enhancement error, continuing with existing data...")
         
         # Post-enhancement cleanup
         if openai_enhanced:
             print(f"[{session_id}] Step 9: Post-enhancement cleanup...")
+            update_progress_message(session_id, "Final cleanup and validation...")
             recommendations, post_stats = post_enhancement_cleanup(recommendations)
             if post_stats.get('null_services_removed', 0) > 0:
                 print(f"[{session_id}]   Removed {post_stats.get('null_services_removed', 0)} entries with null service")
             if post_stats.get('services_cleaned', 0) > 0:
                 print(f"[{session_id}]   Cleaned {post_stats.get('services_cleaned', 0)} service fields")
+        
+        update_progress_message(session_id, f"Processing complete! Found {len(recommendations)} recommendations.")
         
         return {
             'recommendations': recommendations,

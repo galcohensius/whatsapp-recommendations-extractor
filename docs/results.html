@@ -796,10 +796,13 @@
                 if (status.status === 'pending' || status.status === 'processing') {
                     // Show progress bar and poll for completion
                     const startTime = Date.now();
-                    const maxTime = 40 * 60 * 1000; // 40 minutes (backend timeout is 30 min, this gives buffer)
+                    const maxTime = 2 * 60 * 60 * 1000; // 2 hours (backend timeout is 2 hours)
                     let pollCount = 0;
                     
-                    showProgress(20, status.status === 'pending' ? 'Waiting for processing...' : 'Processing files...');
+                    // Use progress_message if available, otherwise use default
+                    const initialMessage = status.progress_message || 
+                        (status.status === 'pending' ? 'Waiting for processing...' : 'Processing files...');
+                    showProgress(20, initialMessage);
                     
                     try {
                         await pollStatus(sessionId, (statusUpdate) => {
@@ -807,11 +810,14 @@
                             const elapsed = Date.now() - startTime;
                             const progress = Math.min(20 + Math.floor((elapsed / maxTime) * 70), 90);
                             
-                            let statusText = 'Processing files...';
-                            if (statusUpdate.status === 'pending') {
-                                statusText = 'Waiting for processing...';
-                            } else if (statusUpdate.status === 'processing') {
-                                statusText = 'Processing files...';
+                            // Use progress_message if available, otherwise fall back to default messages
+                            let statusText = statusUpdate.progress_message || 'Processing files...';
+                            if (!statusUpdate.progress_message) {
+                                if (statusUpdate.status === 'pending') {
+                                    statusText = 'Waiting for processing...';
+                                } else if (statusUpdate.status === 'processing') {
+                                    statusText = 'Processing files...';
+                                }
                             }
                             
                             showProgress(progress, statusText);

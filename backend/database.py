@@ -32,6 +32,7 @@ class Session(Base):
         index=True
     )  # pending, processing, completed, error, timeout
     error_message = Column(Text, nullable=True)
+    progress_message = Column(Text, nullable=True)
     expires_at = Column(
         DateTime,
         default=lambda: datetime.utcnow() + timedelta(days=settings.RETENTION_DAYS),
