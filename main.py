@@ -43,12 +43,12 @@ def run_extraction():
 
 
 def run_ai_enhancement(openai_model: str = 'gpt-4o-mini'):
-    """Run AI enhancement using OpenAI API."""
+    """Run AI enhancement using OpenAI API (single pass with smart context windows)."""
     print("\n" + "="*70)
-    print("STEP 2: AI ENHANCEMENT")
+    print("STEP 3: AI ENHANCEMENT")
     print("="*70)
     
-    from ai_enhance_recommendations import enhance_recommendations_with_openai, enhance_null_services_with_openai
+    from ai_enhance_recommendations import enhance_recommendations_with_openai
     from extract_txt_and_vcf import parse_all_chat_files
     from pathlib import Path
     import json
@@ -70,35 +70,21 @@ def run_ai_enhancement(openai_model: str = 'gpt-4o-mini'):
     text_dir = project_root / 'data' / 'txt'
     all_messages = parse_all_chat_files(text_dir)
     
+    null_count_before = sum(1 for r in recommendations if not r.get('service'))
     print(f"Enhancing {len(recommendations)} recommendations using {openai_model}...")
+    print(f"  {null_count_before} entries with null service (will use extended context)")
+    print(f"  {len(recommendations) - null_count_before} entries with existing service (will use normal context)")
     
     try:
-        # First pass: Full enhancement
-        print("\nFirst pass: Full enhancement of all recommendations...")
+        # Single pass with smart context windows
         result = enhance_recommendations_with_openai(recommendations, all_messages, model=openai_model)
         
         if result['success']:
-            print("✓ First pass completed!")
+            print("\n✓ AI Enhancement completed!")
             recommendations = result['enhanced']
-            
-            # Count null services before second pass
-            null_count_before = sum(1 for r in recommendations if not r.get('service'))
-            
-            # Second pass: Extract services for null entries with extended context
-            if null_count_before > 0:
-                print("\n" + "-"*50)
-                print("Second pass: Extracting services for null entries...")
-                print("-"*50)
-                result2 = enhance_null_services_with_openai(recommendations, all_messages, model=openai_model)
-                
-                if result2['success']:
-                    recommendations = result2['enhanced']
-                    null_count_after = sum(1 for r in recommendations if not r.get('service'))
-                    print(f"\n✓ Second pass completed!")
-                    print(f"  Extracted services for {null_count_before - null_count_after} recommendations")
-                else:
-                    print(f"⚠ Second pass failed: {result2['error']}")
-                    print("  Continuing with first pass results.")
+            null_count_after = sum(1 for r in recommendations if not r.get('service'))
+            extracted_count = null_count_before - null_count_after
+            print(f"  Extracted services for {extracted_count} recommendations")
             
             # Save enhanced recommendations
             with open(input_file, 'w', encoding='utf-8') as f:
@@ -107,13 +93,12 @@ def run_ai_enhancement(openai_model: str = 'gpt-4o-mini'):
             # Save OpenAI response for debugging
             with open(openai_response_file, 'w', encoding='utf-8') as f:
                 json.dump({
-                    'first_pass_response': result.get('raw_response'),
-                    'second_pass_response': result2.get('raw_response') if 'result2' in locals() else None,
+                    'response': result.get('raw_response'),
                     'timestamp': datetime.now().isoformat(),
                     'model': openai_model,
                     'recommendations_count': len(recommendations),
-                    'null_services_before': null_count_before if 'null_count_before' in locals() else None,
-                    'null_services_after': null_count_after if 'null_count_after' in locals() else None
+                    'null_services_before': null_count_before,
+                    'null_services_after': null_count_after
                 }, f, ensure_ascii=False, indent=2)
             print(f"  Saved OpenAI response to {openai_response_file}")
         else:
@@ -131,8 +116,79 @@ def run_ai_enhancement(openai_model: str = 'gpt-4o-mini'):
     print("="*70)
 
 
+def run_pre_enhancement_cleanup():
+    """Run pre-enhancement cleanup (before AI enhancement)."""
+    print("\n" + "="*70)
+    print("STEP 2: PRE-ENHANCEMENT CLEANUP")
+    print("="*70)
+    
+    from data_cleanup import pre_enhancement_cleanup
+    from extract_txt_and_vcf import parse_all_chat_files
+    from pathlib import Path
+    import json
+    
+    project_root = Path(__file__).parent
+    input_file = project_root / 'web' / 'recommendations.json'
+    
+    if not input_file.exists():
+        print(f"⚠️  {input_file} not found. Skipping cleanup.")
+        return
+    
+    # Load recommendations
+    with open(input_file, 'r', encoding='utf-8') as f:
+        recommendations = json.load(f)
+    
+    # Load messages for context (needed for personal contact filtering)
+    text_dir = project_root / 'data' / 'txt'
+    all_messages = parse_all_chat_files(text_dir) if text_dir.exists() else None
+    
+    # Run pre-enhancement cleanup
+    cleaned_recommendations, stats = pre_enhancement_cleanup(recommendations, all_messages)
+    
+    # Save cleaned recommendations
+    with open(input_file, 'w', encoding='utf-8') as f:
+        json.dump(cleaned_recommendations, f, ensure_ascii=False, indent=2)
+    
+    print("\n" + "="*70)
+    print("✓ Pre-enhancement cleanup complete!")
+    print("="*70)
+
+
+def run_post_enhancement_cleanup():
+    """Run post-enhancement cleanup (after AI enhancement)."""
+    print("\n" + "="*70)
+    print("STEP 4: POST-ENHANCEMENT CLEANUP")
+    print("="*70)
+    
+    from data_cleanup import post_enhancement_cleanup
+    from pathlib import Path
+    import json
+    
+    project_root = Path(__file__).parent
+    input_file = project_root / 'web' / 'recommendations.json'
+    
+    if not input_file.exists():
+        print(f"⚠️  {input_file} not found. Skipping cleanup.")
+        return
+    
+    # Load recommendations
+    with open(input_file, 'r', encoding='utf-8') as f:
+        recommendations = json.load(f)
+    
+    # Run post-enhancement cleanup
+    final_recommendations, stats = post_enhancement_cleanup(recommendations)
+    
+    # Save final recommendations
+    with open(input_file, 'w', encoding='utf-8') as f:
+        json.dump(final_recommendations, f, ensure_ascii=False, indent=2)
+    
+    print("\n" + "="*70)
+    print("✓ Post-enhancement cleanup complete!")
+    print("="*70)
+
+
 def run_fix(fix_after_extraction: bool = True):
-    """Run the fix/cleanup script."""
+    """Run the fix/cleanup script (legacy function for backward compatibility)."""
     if not fix_after_extraction:
         return
     
@@ -335,26 +391,34 @@ Examples:
         run_analysis(analyze_after=True)
         return
     
-    # Normal workflow
+    # Normal workflow: Extract → Clean → Enhance → Second Clean
     print("\n🚀 Starting workflow...")
     
     # Step 1: Extraction
     run_extraction()
     
-    # Step 2: AI Enhancement (if requested)
+    # Step 2: Pre-enhancement cleanup (if not skipped)
+    if not args.skip_fix:
+        run_pre_enhancement_cleanup()
+    
+    # Step 3: AI Enhancement (if requested)
     if args.use_openai:
         run_ai_enhancement(openai_model=args.openai_model)
+        
+        # Step 4: Post-enhancement cleanup (after AI, if not skipped)
+        if not args.skip_fix:
+            run_post_enhancement_cleanup()
+    elif not args.skip_fix:
+        # If no AI enhancement, still run post-cleanup (which is just final validation)
+        run_post_enhancement_cleanup()
     
-    # Step 3: Fix (if not skipped)
-    run_fix(fix_after_extraction=not args.skip_fix)
-    
-    # Step 4: Analysis (if not skipped)
+    # Step 5: Analysis (if not skipped)
     # Note: Analysis is already run inside extract_recommendations automatically
     # This step is for when you want to re-analyze after fixes
     if not args.skip_analysis:
         run_analysis(analyze_after=True)
     
-    # Step 5: Deploy (if requested)
+    # Step 6: Deploy (if requested)
     deployed = False
     if args.deploy:
         run_deployment(auto_commit=args.auto_commit)

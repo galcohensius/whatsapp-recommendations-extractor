@@ -297,89 +297,158 @@ def enhance_recommendations_with_openai(
             
             print(f"\n  Processing batch {batch_num + 1}/{total_batches} ({len(batch)} recommendations)...")
             
-            # Build prompt for this batch (using context_window=5 for better understanding)
-            prompt = build_enhancement_prompt(batch, messages, context_window=5)
-            prompt_tokens = estimate_tokens(prompt)
+            # Use smart context windows: extended (10) for null services, normal (5) for others
+            # Build prompt with per-recommendation context windows
+            # Split batch into null-service and non-null-service groups for different context windows
+            null_service_batch = [rec for rec in batch if not rec.get('service')]
+            non_null_service_batch = [rec for rec in batch if rec.get('service')]
             
-            print(f"    Prompt: ~{prompt_tokens:,} tokens")
+            all_enhanced_batch = []
             
-            # Check if prompt is too large
-            if prompt_tokens > safe_input_tokens:
-                print(f"    ⚠ Warning: Prompt size ({prompt_tokens:,} tokens) exceeds safe limit ({safe_input_tokens:,} tokens)")
-                print(f"      Consider reducing batch_size if this causes errors")
-            
-            try:
-                # Call OpenAI API with timeout
-                response = client.chat.completions.create(
-                    model=model,
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": "You are a helpful assistant that extracts and enhances business recommendations from chat messages. CRITICAL: The 'service' field is the MOST IMPORTANT field. Extract ONLY the service/occupation name (e.g., 'מוביל', 'חשמלאי') - NOT full sentences like 'לכם המלצה על מוביל טוב'. Remove conversational prefixes. IMPORTANT: Only update the 'service' field when it is null - do NOT change existing service values. For ALL entries (regardless of service value), update the 'context' field with additional relevant information. For the 'recommender' field: The recommender is the SENDER of the message (their phone number is already in the field). Only update to 'Name - Phone' format if you can find the NAME associated with that specific phone number in the chat context. Do NOT guess names - if you cannot find the name, keep the existing recommender value. Always return valid JSON arrays."
-                        },
-                        {
-                            "role": "user",
-                            "content": prompt
-                        }
-                    ],
-                    response_format={"type": "json_object"},
-                    temperature=0.3,
-                    timeout=600.0  # 10 minute timeout per batch
-                )
+            # Process null service entries with extended context (context_window=10)
+            if null_service_batch:
+                print(f"    Processing {len(null_service_batch)} entries with null service (extended context)...")
+                prompt = build_enhancement_prompt(null_service_batch, messages, context_window=10)
+                prompt_tokens = estimate_tokens(prompt)
                 
-                raw_response = response.choices[0].message.content
+                print(f"      Prompt: ~{prompt_tokens:,} tokens")
                 
-                # Check if response content is None - handle gracefully
-                if raw_response is None:
-                    print(f"    ⚠ Batch {batch_num + 1} failed: OpenAI API returned empty response")
-                    # Keep original recommendations for this batch
-                    all_enhanced.extend(batch)
-                    continue
+                # Check if prompt is too large
+                if prompt_tokens > safe_input_tokens:
+                    print(f"      ⚠ Warning: Prompt size ({prompt_tokens:,} tokens) exceeds safe limit ({safe_input_tokens:,} tokens)")
+                    print(f"        Consider reducing batch_size if this causes errors")
                 
-                all_raw_responses.append(raw_response)
-                
-                # Parse JSON response
-                response_data = json.loads(raw_response)
-                
-                # Extract recommendations array from response
-                if isinstance(response_data, dict):
-                    if 'recommendations' in response_data:
-                        enhanced = response_data['recommendations']
-                    elif 'enhanced' in response_data:
-                        enhanced = response_data['enhanced']
-                    elif 'data' in response_data:
-                        enhanced = response_data['data']
+                try:
+                    response = client.chat.completions.create(
+                        model=model,
+                        messages=[
+                            {
+                                "role": "system",
+                                "content": "You are a helpful assistant that extracts and enhances business recommendations from chat messages. CRITICAL: The 'service' field is the MOST IMPORTANT field. Extract ONLY the service/occupation name (e.g., 'מוביל', 'חשמלאי') - NOT full sentences like 'לכם המלצה על מוביל טוב'. Remove conversational prefixes. IMPORTANT: Only update the 'service' field when it is null - do NOT change existing service values. For ALL entries (regardless of service value), update the 'context' field with additional relevant information. For the 'recommender' field: The recommender is the SENDER of the message (their phone number is already in the field). Only update to 'Name - Phone' format if you can find the NAME associated with that specific phone number in the chat context. Do NOT guess names - if you cannot find the name, keep the existing recommender value. Always return valid JSON arrays."
+                            },
+                            {
+                                "role": "user",
+                                "content": prompt
+                            }
+                        ],
+                        response_format={"type": "json_object"},
+                        temperature=0.3,
+                        timeout=600.0
+                    )
+                    
+                    raw_response = response.choices[0].message.content
+                    
+                    if raw_response is None:
+                        print(f"      ⚠ Null service batch failed: OpenAI API returned empty response")
+                        all_enhanced_batch.extend(null_service_batch)
                     else:
-                        keys = [k for k in response_data.keys() if k.isdigit()]
-                        if keys:
-                            enhanced = [response_data[str(i)] for i in sorted([int(k) for k in keys])]
+                        all_raw_responses.append(raw_response)
+                        response_data = json.loads(raw_response)
+                        
+                        if isinstance(response_data, dict):
+                            if 'recommendations' in response_data:
+                                enhanced = response_data['recommendations']
+                            elif 'enhanced' in response_data:
+                                enhanced = response_data['enhanced']
+                            elif 'data' in response_data:
+                                enhanced = response_data['data']
+                            else:
+                                keys = [k for k in response_data.keys() if k.isdigit()]
+                                if keys:
+                                    enhanced = [response_data[str(i)] for i in sorted([int(k) for k in keys])]
+                                else:
+                                    raise ValueError("Could not find recommendations array in response")
+                        elif isinstance(response_data, list):
+                            enhanced = response_data
                         else:
-                            raise ValueError("Could not find recommendations array in response")
-                elif isinstance(response_data, list):
-                    enhanced = response_data
+                            raise ValueError("Unexpected response format")
+                        
+                        enhanced = merge_enhancements(null_service_batch, enhanced)
+                        all_enhanced_batch.extend(enhanced)
+                        print(f"      ✓ Null service entries processed")
+                        
+                except Exception as e:
+                    print(f"      ⚠ Null service batch failed: {str(e)}")
+                    all_enhanced_batch.extend(null_service_batch)
+            
+            # Process non-null service entries with normal context (context_window=5)
+            if non_null_service_batch:
+                print(f"    Processing {len(non_null_service_batch)} entries with existing service (normal context)...")
+                prompt = build_enhancement_prompt(non_null_service_batch, messages, context_window=5)
+                prompt_tokens = estimate_tokens(prompt)
+            
+                print(f"      Prompt: ~{prompt_tokens:,} tokens")
+                
+                if prompt_tokens > safe_input_tokens:
+                    print(f"      ⚠ Warning: Prompt size ({prompt_tokens:,} tokens) exceeds safe limit ({safe_input_tokens:,} tokens)")
+                    print(f"        Consider reducing batch_size if this causes errors")
+                
+                try:
+                    response = client.chat.completions.create(
+                        model=model,
+                        messages=[
+                            {
+                                "role": "system",
+                                "content": "You are a helpful assistant that extracts and enhances business recommendations from chat messages. CRITICAL: The 'service' field is the MOST IMPORTANT field. Extract ONLY the service/occupation name (e.g., 'מוביל', 'חשמלאי') - NOT full sentences like 'לכם המלצה על מוביל טוב'. Remove conversational prefixes. IMPORTANT: Only update the 'service' field when it is null - do NOT change existing service values. For ALL entries (regardless of service value), update the 'context' field with additional relevant information. For the 'recommender' field: The recommender is the SENDER of the message (their phone number is already in the field). Only update to 'Name - Phone' format if you can find the NAME associated with that specific phone number in the chat context. Do NOT guess names - if you cannot find the name, keep the existing recommender value. Always return valid JSON arrays."
+                            },
+                            {
+                                "role": "user",
+                                "content": prompt
+                            }
+                        ],
+                        response_format={"type": "json_object"},
+                        temperature=0.3,
+                        timeout=600.0
+                    )
+                    
+                    raw_response = response.choices[0].message.content
+                    
+                    if raw_response is None:
+                        print(f"      ⚠ Non-null service batch failed: OpenAI API returned empty response")
+                        all_enhanced_batch.extend(non_null_service_batch)
+                    else:
+                        all_raw_responses.append(raw_response)
+                        response_data = json.loads(raw_response)
+                        
+                        if isinstance(response_data, dict):
+                            if 'recommendations' in response_data:
+                                enhanced = response_data['recommendations']
+                            elif 'enhanced' in response_data:
+                                enhanced = response_data['enhanced']
+                            elif 'data' in response_data:
+                                enhanced = response_data['data']
+                            else:
+                                keys = [k for k in response_data.keys() if k.isdigit()]
+                                if keys:
+                                    enhanced = [response_data[str(i)] for i in sorted([int(k) for k in keys])]
+                                else:
+                                    raise ValueError("Could not find recommendations array in response")
+                        elif isinstance(response_data, list):
+                            enhanced = response_data
+                        else:
+                            raise ValueError("Unexpected response format")
+                        
+                        enhanced = merge_enhancements(non_null_service_batch, enhanced)
+                        all_enhanced_batch.extend(enhanced)
+                        print(f"      ✓ Non-null service entries processed")
+                        
+                except Exception as e:
+                    print(f"      ⚠ Non-null service batch failed: {str(e)}")
+                    all_enhanced_batch.extend(non_null_service_batch)
+            
+            # Combine both groups (maintain original order)
+            # Reconstruct batch in original order
+            enhanced_dict = {rec.get('phone'): rec for rec in all_enhanced_batch}
+            final_batch = []
+            for rec in batch:
+                phone = rec.get('phone')
+                if phone in enhanced_dict:
+                    final_batch.append(enhanced_dict[phone])
                 else:
-                    raise ValueError("Unexpected response format")
-                
-                # Always merge with originals to preserve original fields (chat_message_index, date, phone, etc.)
-                # This ensures we only update the fields we want to enhance, not overwrite everything
-                enhanced = merge_enhancements(batch, enhanced)
-                
-                # Validate count after merge
-                if len(enhanced) != len(batch):
-                    print(f"    ⚠ Warning: After merge, expected {len(batch)} recommendations, got {len(enhanced)}")
-                
-                all_enhanced.extend(enhanced)
-                print(f"    ✓ Batch {batch_num + 1} completed")
-                
-            except json.JSONDecodeError as e:
-                print(f"    ⚠ Batch {batch_num + 1} failed: JSON parse error")
-                print(f"      Error: {e}")
-                # Keep original recommendations for this batch
-                all_enhanced.extend(batch)
-            except Exception as e:
-                print(f"    ⚠ Batch {batch_num + 1} failed: {str(e)}")
-                # Keep original recommendations for this batch
-                all_enhanced.extend(batch)
+                    final_batch.append(rec)
+            
+            all_enhanced.extend(final_batch)
+            print(f"    ✓ Batch {batch_num + 1} completed")
         
         # Merge all results
         if len(all_enhanced) != len(recommendations):

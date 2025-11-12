@@ -20,10 +20,9 @@ from extract_txt_and_vcf import (
     extract_vcf_mentions,
     include_unmentioned_vcf_files
 )
-from data_cleanup import fix_recommendations
+from data_cleanup import pre_enhancement_cleanup, post_enhancement_cleanup
 from ai_enhance_recommendations import (
-    enhance_recommendations_with_openai,
-    enhance_null_services_with_openai
+    enhance_recommendations_with_openai
 )
 from backend.config import settings
 
@@ -126,27 +125,21 @@ def process_upload_sync(session_id: str, zip_file_path: Path) -> Dict:
         
         print(f"[{session_id}]   Total unique recommendations: {len(unique_recs)}")
         
-        # Fix/cleanup recommendations
-        print(f"[{session_id}] Step 7: Cleaning up recommendations...")
-        # Create temporary JSON file for fix_recommendations
-        temp_json = temp_dir / "temp_recommendations.json"
-        with open(temp_json, 'w', encoding='utf-8') as f:
-            json.dump(unique_recs, f, ensure_ascii=False, indent=2)
+        # Pre-enhancement cleanup
+        print(f"[{session_id}] Step 7: Pre-enhancement cleanup...")
+        recommendations, cleanup_stats = pre_enhancement_cleanup(unique_recs, messages=all_messages)
+        print(f"[{session_id}]   Fixed {cleanup_stats.get('duplicates_removed', 0)} duplicates")
+        print(f"[{session_id}]   Removed {cleanup_stats.get('personal_contacts_removed', 0)} personal contacts")
         
-        fix_result = fix_recommendations(temp_json, temp_json, messages=all_messages)
-        print(f"[{session_id}]   Fixed {fix_result.get('duplicates_removed', 0)} duplicates")
-        print(f"[{session_id}]   Removed {fix_result.get('personal_contacts_removed', 0)} personal contacts")
-        
-        # Reload fixed recommendations
-        with open(temp_json, 'r', encoding='utf-8') as f:
-            recommendations = json.load(f)
-        
-        # OpenAI enhancement
+        # OpenAI enhancement (single pass with smart context windows)
         openai_enhanced = False
         if settings.OPENAI_API_KEY:
             print(f"[{session_id}] Step 8: Enhancing with OpenAI...")
             try:
-                # First pass: Full enhancement
+                null_count_before = sum(1 for r in recommendations if not r.get('service'))
+                print(f"[{session_id}]   {null_count_before} entries with null service (extended context)")
+                print(f"[{session_id}]   {len(recommendations) - null_count_before} entries with existing service (normal context)")
+                
                 result = enhance_recommendations_with_openai(
                     recommendations,
                     all_messages,
@@ -157,52 +150,23 @@ def process_upload_sync(session_id: str, zip_file_path: Path) -> Dict:
                 if result['success']:
                     recommendations = result['enhanced']
                     openai_enhanced = True
-                    
-                    # Second pass: Extract services for null entries with extended context
-                    null_count = sum(1 for r in recommendations if not r.get('service'))
-                    if null_count > 0:
-                        print(f"[{session_id}]   Found {null_count} entries with null service, retrying with extended context...")
-                        result2 = enhance_null_services_with_openai(
-                            recommendations,
-                            all_messages,
-                            model="gpt-4o-mini",
-                            api_key=settings.OPENAI_API_KEY,
-                            batch_size=50,  # Smaller batches for extended context
-                            context_window=20  # Extended context window
-                        )
-                        if result2['success']:
-                            recommendations = result2['enhanced']
-                            print(f"[{session_id}]   Extended context retry completed")
-                    
-                    # Step 9: Drop entries that still have null service after retry
-                    print(f"[{session_id}] Step 9: Dropping entries with null service...")
-                    before_count = len(recommendations)
-                    recommendations = [r for r in recommendations if r.get('service')]
-                    dropped_count = before_count - len(recommendations)
-                    if dropped_count > 0:
-                        print(f"[{session_id}]   Dropped {dropped_count} entries with null service")
-                    else:
-                        print(f"[{session_id}]   All entries have service")
-                    
-                    # Step 10: Final service text cleaning pass
-                    print(f"[{session_id}] Step 10: Final service text cleaning...")
-                    from data_cleanup import clean_service_text
-                    services_cleaned = 0
-                    for rec in recommendations:
-                        service = rec.get('service')
-                        if service and isinstance(service, str):
-                            cleaned = clean_service_text(service)
-                            if cleaned != service:
-                                rec['service'] = cleaned if cleaned else None
-                                services_cleaned += 1
-                    if services_cleaned > 0:
-                        print(f"[{session_id}]   Cleaned {services_cleaned} service fields")
-                    
+                    null_count_after = sum(1 for r in recommendations if not r.get('service'))
+                    extracted_count = null_count_before - null_count_after
+                    print(f"[{session_id}]   Extracted services for {extracted_count} recommendations")
                     print(f"[{session_id}]   OpenAI enhancement completed")
                 else:
                     print(f"[{session_id}]   OpenAI enhancement failed: {result.get('error', 'Unknown error')}")
             except Exception as e:
                 print(f"[{session_id}]   OpenAI enhancement error: {e}")
+        
+        # Post-enhancement cleanup
+        if openai_enhanced:
+            print(f"[{session_id}] Step 9: Post-enhancement cleanup...")
+            recommendations, post_stats = post_enhancement_cleanup(recommendations)
+            if post_stats.get('null_services_removed', 0) > 0:
+                print(f"[{session_id}]   Removed {post_stats.get('null_services_removed', 0)} entries with null service")
+            if post_stats.get('services_cleaned', 0) > 0:
+                print(f"[{session_id}]   Cleaned {post_stats.get('services_cleaned', 0)} service fields")
         
         return {
             'recommendations': recommendations,

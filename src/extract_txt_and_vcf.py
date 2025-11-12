@@ -834,20 +834,29 @@ def include_unmentioned_vcf_files(vcf_data: Dict, mentioned_filenames: set) -> L
     for vcf_key, vcf_info in vcf_data.items():
         if vcf_key not in mentioned_filenames:
             # Clean and validate name
-            name = vcf_info['name']
+            name = vcf_info.get('name')
+            service = vcf_info.get('service')
+            
             if name:
                 name = name.replace('\n', ' ').strip()
                 # Skip personal contacts
                 if not is_valid_name(name):
                     continue
+                
+                # Extract service from name if not already extracted (e.g., "דויד - מתקין מזגנים")
+                if not service:
+                    service = extract_service_from_name(name)
+                    if service:
+                        # Clean the name (remove service part)
+                        name = clean_name_after_service_extraction(name, service)
             
             recommendations.append({
                 'name': name,
-                'phone': vcf_info['phone'],
-                'service': vcf_info.get('service'),
+                'phone': vcf_info.get('phone'),
+                'service': service,
                 'date': None,
                 'recommender': None,
-                'context': f"From file: {vcf_info['filename']}",
+                'context': f"From file: {vcf_info.get('filename', 'unknown')}",
                 'chat_message_index': None  # No chat message index for unmentioned VCF files
             })
     

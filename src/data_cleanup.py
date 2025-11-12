@@ -12,7 +12,7 @@ import json
 import re
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 # Add src directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
@@ -292,15 +292,12 @@ def is_personal_contact_only(rec: Dict, messages: Optional[List[Dict]] = None) -
     return False
 
 
-def fix_recommendations(input_file: Path, output_file: Optional[Path] = None, messages: Optional[List[Dict]] = None) -> Dict:
-    """Fix issues in recommendations.json."""
-    if output_file is None:
-        output_file = input_file
+def pre_enhancement_cleanup(recommendations: List[Dict], messages: Optional[List[Dict]] = None) -> Tuple[List[Dict], Dict]:
+    """Clean recommendations before AI enhancement.
     
-    print(f"Reading {input_file}...")
-    with open(input_file, 'r', encoding='utf-8') as f:
-        recommendations = json.load(f)
-    
+    Returns:
+        Tuple of (cleaned_recommendations, stats_dict)
+    """
     print(f"Found {len(recommendations)} recommendations")
     
     # Step 1: Remove duplicates (same name + phone, keeping the one with most info)
@@ -371,27 +368,6 @@ def fix_recommendations(input_file: Path, output_file: Optional[Path] = None, me
                 contexts_cleaned += 1
     
     print(f"  Cleaned {contexts_cleaned} context fields")
-    
-    # Step 2.6: Extract services from names for entries with null service
-    print("\nStep 2.6: Extracting services from names...")
-    services_extracted = 0
-    
-    for rec in unique_recs:
-        # Only process entries with null service
-        if not rec.get('service'):
-            name = rec.get('name', '').strip()
-            if name and name != 'Unknown':
-                # Try to extract service from name
-                service = extract_service_from_name(name)
-                if service:
-                    # Extract service and clean the name
-                    rec['service'] = service
-                    cleaned_name = clean_name_after_service_extraction(name, service)
-                    if cleaned_name and cleaned_name != name:
-                        rec['name'] = cleaned_name
-                    services_extracted += 1
-    
-    print(f"  Extracted services from {services_extracted} names")
     
     # Step 2.7: Remove invalid recommendations (URL fragments, invalid names, etc.)
     print("\nStep 2.7: Filtering invalid recommendations...")
@@ -532,6 +508,95 @@ def fix_recommendations(input_file: Path, output_file: Optional[Path] = None, me
     else:
         print("  No personal contacts to remove")
     
+    stats = {
+        'total_before': len(recommendations),
+        'total_after': len(unique_recs),
+        'duplicates_removed': duplicates_removed,
+        'services_cleaned': services_cleaned,
+        'names_fixed': names_fixed,
+        'names_set_to_unknown': names_set_to_unknown,
+        'phones_removed': phones_removed,
+        'personal_contacts_removed': personal_contacts_removed,
+        'contexts_cleaned': contexts_cleaned,
+        'invalid_removed': invalid_removed
+    }
+    
+    return unique_recs, stats
+
+
+def post_enhancement_cleanup(recommendations: List[Dict]) -> Tuple[List[Dict], Dict]:
+    """Final cleanup after AI enhancement.
+    
+    Returns:
+        Tuple of (cleaned_recommendations, stats_dict)
+    """
+    print(f"Found {len(recommendations)} recommendations")
+    
+    # Step 1: Clean service fields again (in case AI added prefixes)
+    print("\nStep 1: Final service field cleaning...")
+    services_cleaned = 0
+    
+    for rec in recommendations:
+        service = rec.get('service')
+        if service and isinstance(service, str):
+            cleaned = clean_service_text(service)
+            if cleaned != service:
+                rec['service'] = cleaned if cleaned else None
+                services_cleaned += 1
+    
+    print(f"  Cleaned {services_cleaned} service fields")
+    
+    # Step 2: Clean context fields again (remove any new issues)
+    print("\nStep 2: Final context field cleaning...")
+    contexts_cleaned = 0
+    
+    for rec in recommendations:
+        context = rec.get('context')
+        if context and isinstance(context, str):
+            cleaned = clean_context_text(context)
+            if cleaned != context:
+                rec['context'] = cleaned if cleaned else None
+                contexts_cleaned += 1
+    
+    print(f"  Cleaned {contexts_cleaned} context fields")
+    
+    # Step 3: Remove entries that still have null service after AI enhancement
+    print("\nStep 3: Removing entries with null service...")
+    before_count = len(recommendations)
+    final_recs = [rec for rec in recommendations if rec.get('service')]
+    null_services_removed = before_count - len(final_recs)
+    
+    if null_services_removed > 0:
+        print(f"  Removed {null_services_removed} entries with null service")
+    else:
+        print("  All entries have service")
+    
+    stats = {
+        'total_before': before_count,
+        'total_after': len(final_recs),
+        'services_cleaned': services_cleaned,
+        'contexts_cleaned': contexts_cleaned,
+        'null_services_removed': null_services_removed
+    }
+    
+    return final_recs, stats
+
+
+def fix_recommendations(input_file: Path, output_file: Optional[Path] = None, messages: Optional[List[Dict]] = None) -> Dict:
+    """Fix issues in recommendations.json (legacy function for backward compatibility).
+    
+    This function now calls pre_enhancement_cleanup for the full cleanup.
+    """
+    if output_file is None:
+        output_file = input_file
+    
+    print(f"Reading {input_file}...")
+    with open(input_file, 'r', encoding='utf-8') as f:
+        recommendations = json.load(f)
+    
+    # Use pre_enhancement_cleanup for full cleanup
+    unique_recs, stats = pre_enhancement_cleanup(recommendations, messages)
+    
     # Save fixed recommendations
     print(f"\nSaving to {output_file}...")
     output_file.parent.mkdir(parents=True, exist_ok=True)
@@ -540,17 +605,10 @@ def fix_recommendations(input_file: Path, output_file: Optional[Path] = None, me
     
     print(f"Done! Saved {len(unique_recs)} recommendations")
     
-    return {
-        'total_before': len(recommendations),
-        'total_after': len(unique_recs),
-        'duplicates_removed': duplicates_removed,
-        'services_cleaned': services_cleaned,
-        'services_extracted': services_extracted,
-        'names_fixed': names_fixed,
-        'names_set_to_unknown': names_set_to_unknown,
-        'phones_removed': phones_removed,
-        'personal_contacts_removed': personal_contacts_removed
-    }
+    # Add services_extracted=0 for backward compatibility (now done in extraction)
+    stats['services_extracted'] = 0
+    
+    return stats
 
 
 if __name__ == '__main__':
