@@ -5,7 +5,7 @@ from typing import Optional
 from uuid import uuid4
 
 from sqlalchemy import (
-    Column, String, DateTime, ForeignKey, Boolean, Text, Index
+    Column, String, DateTime, ForeignKey, Boolean, Text, Index, text
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.ext.declarative import declarative_base
@@ -80,8 +80,27 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 def init_db():
-    """Initialize database tables."""
+    """Initialize database tables and add missing columns."""
+    # Create all tables
     Base.metadata.create_all(bind=engine)
+    
+    # Add missing columns (migration for existing databases)
+    with engine.begin() as conn:
+        # Check and add progress_message column if missing
+        check_query = text("""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name='sessions' AND column_name='progress_message'
+        """)
+        result = conn.execute(check_query)
+        if result.fetchone() is None:
+            print("Adding missing 'progress_message' column to 'sessions' table...")
+            alter_query = text("""
+                ALTER TABLE sessions 
+                ADD COLUMN progress_message TEXT
+            """)
+            conn.execute(alter_query)
+            print("Migration completed: added 'progress_message' column")
 
 
 def get_db():
