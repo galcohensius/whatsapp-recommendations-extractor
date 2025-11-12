@@ -46,6 +46,7 @@ def extract_service_from_name(name: str) -> Optional[str]:
         r'מערכות\s+רדיו',  # radio systems
         r'מפוח\s+גג',  # roof blower
         r'עורך\s+דין',  # lawyer
+        r'מתקן\s+אופניים',  # bicycle repair
     ]
     
     # Single-word service keywords
@@ -63,12 +64,14 @@ def extract_service_from_name(name: str) -> Optional[str]:
         r'מתווך',  # real estate agent
         r'רופא',  # doctor
         r'פרגולה',  # pergola (construction/service)
+        r'ירקן',  # greengrocer
     ]
     
     # Occupation patterns with following words (e.g., "טכנאי דודים", "מתקין מזגנים")
     occupation_patterns = [
         (r'טכנאי', r'\s+\S+'),  # טכנאי + word (e.g., דודים, בר מים)
         (r'מתקין', r'\s+\S+'),  # מתקין + word (e.g., מזגנים)
+        (r'מתקן', r'\s+\S+'),  # מתקן + word (e.g., אופניים)
     ]
     
     service_keywords = multi_word_services + single_word_services
@@ -194,6 +197,15 @@ def clean_name_after_service_extraction(name: str, extracted_service: str) -> st
     # Replace service with space, then clean up extra spaces
     cleaned = re.sub(re.escape(service), '', name, count=1)
     cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+    
+    # Remove common descriptors that might appear between name and service
+    # e.g., "עיליי נער מתקן אופניים" -> extract "מתקן אופניים" -> "עיליי נער" -> remove "נער" -> "עיליי"
+    common_descriptors = ['נער', 'נערה', 'איש', 'אשה', 'גבר', 'אישה']  # boy, girl, man, woman
+    words = cleaned.split()
+    if len(words) >= 2:
+        # Check if last word is a common descriptor
+        if words[-1] in common_descriptors:
+            cleaned = ' '.join(words[:-1]).strip()
     
     return cleaned if cleaned else name
 

@@ -255,6 +255,29 @@ def clean_service_text(service: str) -> str:
     cleaned = re.sub(r'\s+ל(?:טיפול|תיקון|התקנה|עבודה|ביצוע|שירות)(?:\s+.*)?$', '', cleaned, flags=re.IGNORECASE)
     cleaned = re.sub(r'\s+https?://[^\s]*', '', cleaned, flags=re.IGNORECASE)  # URLs anywhere
     
+    # Specific service cleaning rules
+    # Remove descriptive phrases after service name
+    cleaned = re.sub(r'^אינסטלטור\s+שיודע\s+להתקין.*$', 'אינסטלטור', cleaned, flags=re.IGNORECASE)
+    
+    # Plural to singular conversions
+    if cleaned == 'גננות':
+        cleaned = 'גנן'
+    
+    # Normalize "דוד שמש" variations to "דוד שמש"
+    if re.match(r'^דודי?\s*שמש$', cleaned, re.IGNORECASE) or cleaned == 'דודים':
+        cleaned = 'דוד שמש'
+    
+    # Remove descriptive text after service
+    cleaned = re.sub(r'^דקים\s+במחירים\s+סבירים.*$', 'דקים', cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r'^הובלה\s+אז\s+זה\s+אחלה.*$', 'הובלה', cleaned, flags=re.IGNORECASE)
+    
+    # Remove leading "ו" (and)
+    if cleaned.startswith('ו'):
+        cleaned = cleaned[1:].strip()
+    
+    # Remove "מישהו" and similar words at the end
+    cleaned = re.sub(r'\s+מישהו\s*$', '', cleaned, flags=re.IGNORECASE)
+    
     # Remove very long descriptive text at the end (keep first 50 chars if result is too long)
     cleaned = cleaned.strip()
     if len(cleaned) > 50:
@@ -420,6 +443,29 @@ def pre_enhancement_cleanup(recommendations: List[Dict], messages: Optional[List
                 contexts_cleaned += 1
     
     print(f"  Cleaned {contexts_cleaned} context fields")
+    
+    # Step 2.6: Extract service from name field when service is missing
+    print("\nStep 2.6: Extracting service from name field...")
+    services_extracted = 0
+    
+    for rec in unique_recs:
+        # Only extract if service is missing
+        if not rec.get('service'):
+            name = rec.get('name', '').strip()
+            if name:
+                extracted_service = extract_service_from_name(name)
+                if extracted_service:
+                    rec['service'] = extracted_service
+                    # Clean the name by removing the extracted service
+                    cleaned_name = clean_name_after_service_extraction(name, extracted_service)
+                    if cleaned_name and cleaned_name != name:
+                        rec['name'] = cleaned_name
+                    services_extracted += 1
+    
+    if services_extracted > 0:
+        print(f"  Extracted {services_extracted} services from name fields")
+    else:
+        print("  No services extracted from names")
     
     # Step 2.7: Remove invalid recommendations (URL fragments, invalid names, etc.)
     print("\nStep 2.7: Filtering invalid recommendations...")
@@ -626,6 +672,51 @@ def post_enhancement_cleanup(recommendations: List[Dict]) -> Tuple[List[Dict], D
     
     print(f"  Cleaned {recommenders_cleaned} recommender fields")
     
+    # Step 2.75: Remove duplicates based on (name_lower, service_lower)
+    print("\nStep 2.75: Removing duplicates by name + service...")
+    seen = {}
+    deduplicated_recs = []
+    duplicates_removed = 0
+    
+    for rec in recommendations:
+        name = (rec.get('name') or '').strip()
+        service = (rec.get('service') or '').strip()
+        
+        # Create key from name_lower and service_lower
+        key = (name.lower(), service.lower())
+        
+        if key in seen:
+            # Check which entry has more complete data
+            existing = seen[key]
+            existing_score = (
+                (1 if existing.get('phone') else 0) +
+                (1 if existing.get('context') and len(existing.get('context', '')) > 20 else 0) +
+                (1 if existing.get('date') else 0) +
+                (1 if existing.get('recommender') else 0)
+            )
+            new_score = (
+                (1 if rec.get('phone') else 0) +
+                (1 if rec.get('context') and len(rec.get('context', '')) > 20 else 0) +
+                (1 if rec.get('date') else 0) +
+                (1 if rec.get('recommender') else 0)
+            )
+            
+            if new_score > existing_score:
+                # Replace with better one
+                deduplicated_recs.remove(existing)
+                deduplicated_recs.append(rec)
+                seen[key] = rec
+            duplicates_removed += 1
+        else:
+            seen[key] = rec
+            deduplicated_recs.append(rec)
+    
+    recommendations = deduplicated_recs
+    if duplicates_removed > 0:
+        print(f"  Removed {duplicates_removed} duplicates by name + service")
+    else:
+        print("  No duplicates found by name + service")
+    
     # Step 3: Remove entries that still have null service after AI enhancement
     print("\nStep 3: Removing entries with null service...")
     before_count = len(recommendations)
@@ -643,6 +734,7 @@ def post_enhancement_cleanup(recommendations: List[Dict]) -> Tuple[List[Dict], D
         'services_cleaned': services_cleaned,
         'contexts_cleaned': contexts_cleaned,
         'recommenders_cleaned': recommenders_cleaned,
+        'duplicates_removed': duplicates_removed,
         'null_services_removed': null_services_removed
     }
     
