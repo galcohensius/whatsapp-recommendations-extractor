@@ -281,10 +281,20 @@
             padding: 12px;
             border-bottom: 1px solid #e9ecef;
             vertical-align: top;
+            transition: background-color 0.2s ease;
         }
 
         tr:hover {
             background: #f8f9fa;
+        }
+
+        /* Column hover effect - highlight entire column when hovering over any cell */
+        table tbody tr td.column-hover {
+            background-color: #e7f3ff;
+        }
+        
+        table thead th.column-hover {
+            background-color: #4a5fc7 !important;
         }
 
         .phone-link {
@@ -1049,7 +1059,44 @@
                     tr.innerHTML = createRowHTML(rec);
                     tbody.appendChild(tr);
                 });
+                
+                // Add column hover effect
+                setupColumnHover();
             }
+        }
+        
+        function setupColumnHover() {
+            const table = document.getElementById('recommendations-table');
+            if (!table) return;
+            
+            const cells = table.querySelectorAll('tbody td');
+            const headers = table.querySelectorAll('thead th');
+            
+            cells.forEach(cell => {
+                cell.addEventListener('mouseenter', function() {
+                    const columnIndex = Array.from(this.parentElement.children).indexOf(this);
+                    // Highlight all cells in this column
+                    table.querySelectorAll(`tbody tr td:nth-child(${columnIndex + 1})`).forEach(td => {
+                        td.classList.add('column-hover');
+                    });
+                    // Highlight header
+                    if (headers[columnIndex]) {
+                        headers[columnIndex].classList.add('column-hover');
+                    }
+                });
+                
+                cell.addEventListener('mouseleave', function() {
+                    const columnIndex = Array.from(this.parentElement.children).indexOf(this);
+                    // Remove highlight from all cells in this column
+                    table.querySelectorAll(`tbody tr td:nth-child(${columnIndex + 1})`).forEach(td => {
+                        td.classList.remove('column-hover');
+                    });
+                    // Remove highlight from header
+                    if (headers[columnIndex]) {
+                        headers[columnIndex].classList.remove('column-hover');
+                    }
+                });
+            });
         }
 
         function renderGrouped() {

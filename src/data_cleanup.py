@@ -19,6 +19,53 @@ sys.path.insert(0, str(Path(__file__).parent))
 from extract_txt_and_vcf import is_valid_name, extract_service_from_name, clean_name_after_service_extraction
 
 
+def clean_recommender_field(recommender: str) -> str:
+    """Clean recommender field to show only phone number in local format (without +972).
+    
+    Examples:
+    - "רוני אזעקות - +97252-838-2295" -> "052-838-2295"
+    - "+97252-838-2295" -> "052-838-2295"
+    - "052-838-2295" -> "052-838-2295"
+    """
+    if not recommender:
+        return recommender
+    
+    recommender = str(recommender).strip()
+    
+    # If it contains " - ", extract the phone part (after the dash)
+    if ' - ' in recommender:
+        parts = recommender.split(' - ', 1)
+        if len(parts) == 2:
+            recommender = parts[1].strip()
+    
+    # Remove +972 prefix and convert to local format
+    if recommender.startswith('+972'):
+        # Remove +972 and any dashes/spaces that follow it
+        phone = recommender[4:]  # Remove '+972'
+        phone = phone.lstrip('-').lstrip()  # Remove leading dash or space after +972
+        phone = phone.replace('-', '').replace(' ', '')  # Remove all remaining dashes/spaces
+        # Add leading 0 if not present
+        if not phone.startswith('0'):
+            phone = '0' + phone
+        # Format as XXX-XXX-XXXX
+        if len(phone) == 10:
+            return phone[:3] + '-' + phone[3:6] + '-' + phone[6:]
+        elif len(phone) == 9:
+            return phone[:2] + '-' + phone[2:5] + '-' + phone[5:]
+        else:
+            return phone
+    
+    # If it's already in local format, ensure proper formatting
+    phone_clean = re.sub(r'[^\d]', '', recommender)
+    if len(phone_clean) == 10:
+        return phone_clean[:3] + '-' + phone_clean[3:6] + '-' + phone_clean[6:]
+    elif len(phone_clean) == 9:
+        return phone_clean[:2] + '-' + phone_clean[2:5] + '-' + phone_clean[5:]
+    
+    # Return as-is if we can't parse it
+    return recommender
+
+
 def clean_context_text(context: str) -> str:
     """Clean context field to remove unwanted patterns."""
     if not context:
@@ -204,6 +251,8 @@ def clean_service_text(service: str) -> str:
     cleaned = re.sub(r'\s+המלצה\s*$', '', cleaned, flags=re.IGNORECASE)  # "המלצה" at end
     cleaned = re.sub(r'\s+מקצוענות\s*$', '', cleaned, flags=re.IGNORECASE)  # "מקצוענות" at end
     cleaned = re.sub(r'\s+מקצוע\s*$', '', cleaned, flags=re.IGNORECASE)  # "מקצוע" at end
+    # Remove action phrases like "לטיפול בתקלה מישהו מכיר" (e.g., "אזעקות לטיפול בתקלה מישהו מכיר" -> "אזעקות")
+    cleaned = re.sub(r'\s+ל(?:טיפול|תיקון|התקנה|עבודה|ביצוע|שירות)(?:\s+.*)?$', '', cleaned, flags=re.IGNORECASE)
     cleaned = re.sub(r'\s+https?://[^\s]*', '', cleaned, flags=re.IGNORECASE)  # URLs anywhere
     
     # Remove very long descriptive text at the end (keep first 50 chars if result is too long)
@@ -307,9 +356,12 @@ def pre_enhancement_cleanup(recommendations: List[Dict], messages: Optional[List
     duplicates_removed = 0
     
     for rec in recommendations:
-        # Use normalized phone as key (remove +, spaces, dashes)
+        # Use normalized phone as key (remove +, spaces, dashes, and normalize +972 to 0)
         phone = rec.get('phone', '').strip()
         phone_normalized = re.sub(r'[\s+\-()]', '', phone)
+        # Normalize +972 prefix to 0 for consistent duplicate detection
+        if phone_normalized.startswith('972'):
+            phone_normalized = '0' + phone_normalized[3:]
         name = rec.get('name', '').strip()
         
         key = (name.lower(), phone_normalized)
@@ -560,6 +612,20 @@ def post_enhancement_cleanup(recommendations: List[Dict]) -> Tuple[List[Dict], D
     
     print(f"  Cleaned {contexts_cleaned} context fields")
     
+    # Step 2.5: Clean recommender fields (remove name, remove +972, format as local phone)
+    print("\nStep 2.5: Cleaning recommender fields...")
+    recommenders_cleaned = 0
+    
+    for rec in recommendations:
+        recommender = rec.get('recommender')
+        if recommender and isinstance(recommender, str):
+            cleaned = clean_recommender_field(recommender)
+            if cleaned != recommender:
+                rec['recommender'] = cleaned if cleaned else None
+                recommenders_cleaned += 1
+    
+    print(f"  Cleaned {recommenders_cleaned} recommender fields")
+    
     # Step 3: Remove entries that still have null service after AI enhancement
     print("\nStep 3: Removing entries with null service...")
     before_count = len(recommendations)
@@ -576,6 +642,7 @@ def post_enhancement_cleanup(recommendations: List[Dict]) -> Tuple[List[Dict], D
         'total_after': len(final_recs),
         'services_cleaned': services_cleaned,
         'contexts_cleaned': contexts_cleaned,
+        'recommenders_cleaned': recommenders_cleaned,
         'null_services_removed': null_services_removed
     }
     

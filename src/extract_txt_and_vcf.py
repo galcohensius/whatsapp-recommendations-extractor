@@ -919,6 +919,9 @@ def extract_recommendations(
         name = rec.get('name', '').strip()
         phone = rec.get('phone', '').strip()
         phone_normalized = re_module.sub(r'[\s+\-()]', '', phone)
+        # Normalize +972 prefix to 0 for consistent duplicate detection
+        if phone_normalized.startswith('972'):
+            phone_normalized = '0' + phone_normalized[3:]
         
         # Use name + normalized phone as key (service can vary for same person)
         key = (name.lower(), phone_normalized)

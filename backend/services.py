@@ -129,6 +129,9 @@ def process_upload_sync(session_id: str, zip_file_path: Path) -> Dict:
             name = (rec.get('name') or '').strip()
             phone = (rec.get('phone') or '').strip()
             phone_normalized = re_module.sub(r'[\s+\-()]', '', phone)
+            # Normalize +972 prefix to 0 for consistent duplicate detection
+            if phone_normalized.startswith('972'):
+                phone_normalized = '0' + phone_normalized[3:]
             
             key = (name.lower(), phone_normalized)
             

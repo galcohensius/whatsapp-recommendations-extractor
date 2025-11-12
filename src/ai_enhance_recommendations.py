@@ -43,16 +43,15 @@ def build_enhancement_prompt_for_null_services(recommendations: List[Dict], mess
         "",
         "The 'service' field should contain the person's OCCUPATION (e.g., 'מתקין מזגנים', 'חשמלאי', 'אינסטלטור', 'רופא', 'טכנאי מחשבים', 'מוביל', 'גנן').",
         "Any other important information (quality of work, location hints, pricing, etc.) should be placed in the 'context' field.",
-        "Enhance the 'recommender' field: The recommender is the SENDER of the message that attached this VCF file (their phone number).",
-        "  Only update it to 'Name - Phone' format if you can find the NAME associated with that specific phone number in the chat context.",
-        "  Do NOT guess names - if you cannot find the name for that phone number, keep the existing recommender value as-is.",
+        "For the 'recommender' field: Keep it as the phone number only. Do NOT add names. The recommender is the SENDER of the message (their phone number is already in the field).",
+        "  Keep the recommender field as just the phone number - do NOT format as 'Name - Phone'.",
         "",
         "IMPORTANT:",
         "- Return ALL recommendations in your response (even if unchanged)",
         "- Only update the 'service' field (with OCCUPATION) for recommendations where service is null",
         "- Extract ONLY the service/occupation name - remove all conversational prefixes like 'לכם המלצה על', 'מומלץ', etc.",
         "- Update the 'context' field with any additional relevant information from the chat (work quality, location, pricing, etc.)",
-        "- Update the 'recommender' field: Only if you can identify the NAME for the recommender's phone number in the chat, format as 'Name - Phone'",
+        "- For the 'recommender' field: Keep it as the phone number only. Do NOT add names or format as 'Name - Phone'.",
         "- Use the exact same structure as input",
         "- Keep all other fields (name, phone, date, chat_message_index) exactly as provided",
         "- If you cannot determine an occupation from context, leave service as null (entry will be removed)",
@@ -89,9 +88,8 @@ def build_enhancement_prompt_for_null_services(recommendations: List[Dict], mess
     prompt_parts.append("  Examples: 'מוביל', 'חשמלאי', 'מתקין מזגנים', 'אינסטלטור', 'רופא', 'טכנאי מחשבים', 'גנן', 'מתווך'")
     prompt_parts.append("  Remove conversational prefixes like 'לכם המלצה על', 'מומלץ', 'המלצה על' - extract just the service name")
     prompt_parts.append("- Update 'context' field with additional relevant information (work quality, location, pricing, specializations, etc.)")
-    prompt_parts.append("- Update 'recommender' field: The recommender is the SENDER of the message (the phone number already in the field).")
-    prompt_parts.append("  Only update to 'Name - Phone' format if you can find the NAME associated with that specific phone number in the chat context.")
-    prompt_parts.append("  Do NOT guess names - if you cannot find the name for that phone number, keep the existing recommender value as-is.")
+    prompt_parts.append("- For the 'recommender' field: Keep it as the phone number only. Do NOT add names or format as 'Name - Phone'.")
+    prompt_parts.append("  The recommender is the SENDER of the message (their phone number is already in the field).")
     prompt_parts.append("- Keep all other fields exactly as provided")
     prompt_parts.append("- If occupation cannot be determined, leave service as null (entry will be removed)")
     
@@ -124,7 +122,7 @@ def build_enhancement_prompt(recommendations: List[Dict], messages: List[Dict], 
         "  - 'מתקין מזגנים' (NOT 'מומלץ מתקין מזגנים')",
         "",
         "3. For ALL entries (regardless of service value): Place other important information in the 'context' field (work quality, location, pricing, specializations, experience level, etc.)",
-        "4. For ALL entries (regardless of service value): Enhance the 'recommender' field - The recommender is the SENDER of the message (their phone number is already in the field). Only update to 'Name - Phone' format if you can find the NAME associated with that specific phone number in the chat context. Do NOT guess names.",
+        "4. For ALL entries (regardless of service value): Keep the 'recommender' field as the phone number only. Do NOT add names or format as 'Name - Phone'. The recommender is the SENDER of the message (their phone number is already in the field).",
         "5. Improve/correct existing fields (name, context, recommender) - but do NOT change existing service values",
         "6. Preserve valid existing data (especially existing service values)",
         "7. All responses must be in valid JSON format",
@@ -134,7 +132,7 @@ def build_enhancement_prompt(recommendations: List[Dict], messages: List[Dict], 
         "- Use the exact same structure as input",
         "- Keep phone numbers exactly as provided",
         "- Preserve dates and other metadata",
-        "- For ALL entries: Enhance 'recommender' field - Extract name from chat context and format as 'Name - Phone' when name is available",
+        "- For ALL entries: Keep 'recommender' field as phone number only. Do NOT add names.",
         "- For ALL entries: Update 'context' field with additional relevant information",
         "- Only update 'service' field when it is null (do NOT change existing service values)",
         "- When extracting service, extract ONLY the service/occupation name - remove conversational prefixes like 'לכם המלצה על', 'מומלץ', etc.",
@@ -173,9 +171,8 @@ def build_enhancement_prompt(recommendations: List[Dict], messages: List[Dict], 
     prompt_parts.append("- 'service' should contain ONLY the occupation/service name - NOT full sentences")
     prompt_parts.append("  Examples: 'מוביל', 'חשמלאי', 'מתקין מזגנים', 'רופא' - remove prefixes like 'לכם המלצה על', 'מומלץ', etc.")
     prompt_parts.append("- For ALL entries (regardless of service value): Update 'context' field with additional relevant information (work quality, location, pricing, specializations, experience, etc.)")
-    prompt_parts.append("- For ALL entries (regardless of service value): Enhance 'recommender' field - The recommender is the SENDER of the message (the phone number already in the field).")
-    prompt_parts.append("  Only update to 'Name - Phone' format if you can find the NAME associated with that specific phone number in the chat context.")
-    prompt_parts.append("  Do NOT guess names - if you cannot find the name for that phone number, keep the existing recommender value as-is.")
+    prompt_parts.append("- For ALL entries (regardless of service value): Keep 'recommender' field as phone number only. Do NOT add names or format as 'Name - Phone'.")
+    prompt_parts.append("  The recommender is the SENDER of the message (their phone number is already in the field).")
     prompt_parts.append("- Improve names if they are 'Unknown' or clearly wrong")
     prompt_parts.append("- Preserve all valid existing data (phone, date, chat_message_index)")
     prompt_parts.append("- Keep phone numbers exactly as provided")
@@ -324,7 +321,7 @@ def enhance_recommendations_with_openai(
                         messages=[
                             {
                                 "role": "system",
-                                "content": "You are a helpful assistant that extracts and enhances business recommendations from chat messages. CRITICAL: The 'service' field is the MOST IMPORTANT field. Extract ONLY the service/occupation name (e.g., 'מוביל', 'חשמלאי') - NOT full sentences like 'לכם המלצה על מוביל טוב'. Remove conversational prefixes. IMPORTANT: Only update the 'service' field when it is null - do NOT change existing service values. For ALL entries (regardless of service value), update the 'context' field with additional relevant information. For the 'recommender' field: The recommender is the SENDER of the message (their phone number is already in the field). Only update to 'Name - Phone' format if you can find the NAME associated with that specific phone number in the chat context. Do NOT guess names - if you cannot find the name, keep the existing recommender value. Always return valid JSON arrays."
+                                "content": "You are a helpful assistant that extracts and enhances business recommendations from chat messages. CRITICAL: The 'service' field is the MOST IMPORTANT field. Extract ONLY the service/occupation name (e.g., 'מוביל', 'חשמלאי') - NOT full sentences like 'לכם המלצה על מוביל טוב'. Remove conversational prefixes. IMPORTANT: Only update the 'service' field when it is null - do NOT change existing service values. For ALL entries (regardless of service value), update the 'context' field with additional relevant information. For the 'recommender' field: Keep it as the phone number only. Do NOT add names or format as 'Name - Phone'. The recommender is the SENDER of the message (their phone number is already in the field). Always return valid JSON arrays."
                             },
                             {
                                 "role": "user",
@@ -332,7 +329,7 @@ def enhance_recommendations_with_openai(
                             }
                         ],
                         response_format={"type": "json_object"},
-                        temperature=0.3,
+                        temperature=0.1,
                         timeout=600.0
                     )
                     
@@ -389,7 +386,7 @@ def enhance_recommendations_with_openai(
                         messages=[
                             {
                                 "role": "system",
-                                "content": "You are a helpful assistant that extracts and enhances business recommendations from chat messages. CRITICAL: The 'service' field is the MOST IMPORTANT field. Extract ONLY the service/occupation name (e.g., 'מוביל', 'חשמלאי') - NOT full sentences like 'לכם המלצה על מוביל טוב'. Remove conversational prefixes. IMPORTANT: Only update the 'service' field when it is null - do NOT change existing service values. For ALL entries (regardless of service value), update the 'context' field with additional relevant information. For the 'recommender' field: The recommender is the SENDER of the message (their phone number is already in the field). Only update to 'Name - Phone' format if you can find the NAME associated with that specific phone number in the chat context. Do NOT guess names - if you cannot find the name, keep the existing recommender value. Always return valid JSON arrays."
+                                "content": "You are a helpful assistant that extracts and enhances business recommendations from chat messages. CRITICAL: The 'service' field is the MOST IMPORTANT field. Extract ONLY the service/occupation name (e.g., 'מוביל', 'חשמלאי') - NOT full sentences like 'לכם המלצה על מוביל טוב'. Remove conversational prefixes. IMPORTANT: Only update the 'service' field when it is null - do NOT change existing service values. For ALL entries (regardless of service value), update the 'context' field with additional relevant information. For the 'recommender' field: Keep it as the phone number only. Do NOT add names or format as 'Name - Phone'. The recommender is the SENDER of the message (their phone number is already in the field). Always return valid JSON arrays."
                             },
                             {
                                 "role": "user",
@@ -397,7 +394,7 @@ def enhance_recommendations_with_openai(
                             }
                         ],
                         response_format={"type": "json_object"},
-                        temperature=0.3,
+                        temperature=0.1,
                         timeout=600.0
                     )
                     
@@ -597,7 +594,7 @@ def enhance_null_services_with_openai(
                     messages=[
                         {
                             "role": "system",
-                            "content": "You are a helpful assistant that extracts OCCUPATIONS from chat messages. The 'service' field should contain the person's OCCUPATION. Other relevant details should go in the 'context' field. For the 'recommender' field: The recommender is the SENDER of the message (their phone number is already in the field). Only update to 'Name - Phone' format if you can find the NAME associated with that specific phone number in the chat context. Do NOT guess names - if you cannot find the name, keep the existing recommender value. Always return valid JSON arrays. Only update the 'service', 'context', and 'recommender' fields for entries where service is null."
+                            "content": "You are a helpful assistant that extracts OCCUPATIONS from chat messages. The 'service' field should contain the person's OCCUPATION. Other relevant details should go in the 'context' field. For the 'recommender' field: Keep it as the phone number only. Do NOT add names or format as 'Name - Phone'. The recommender is the SENDER of the message (their phone number is already in the field). Always return valid JSON arrays. Only update the 'service', 'context', and 'recommender' fields for entries where service is null."
                         },
                         {
                             "role": "user",
@@ -605,7 +602,7 @@ def enhance_null_services_with_openai(
                         }
                     ],
                     response_format={"type": "json_object"},
-                    temperature=0.3,
+                    temperature=0.1,
                     timeout=600.0
                 )
                 
@@ -771,30 +768,23 @@ def enhance_null_services_with_openai(
                         else:
                             # No original context, use enhanced
                             rec['context'] = enhanced_context
-                    # Update recommender with name if enhanced version has it
+                    # Keep recommender as phone number only - do NOT add names
+                    # If enhanced version has "Name - Phone" format, extract just the phone part
                     enhanced_recommender = get_field(enhanced_rec, 'recommender') or enhanced_rec.get('recommender', '')
                     orig_recommender = rec.get('recommender', '')
                     if enhanced_recommender and enhanced_recommender != orig_recommender:
-                        # Only update if we have a valid name (not a default/guess)
-                        # Check if enhanced has "Name - Phone" format
+                        # If enhanced has "Name - Phone" format, extract just the phone part
                         if ' - ' in enhanced_recommender:
                             parts = enhanced_recommender.split(' - ', 1)
                             if len(parts) == 2:
-                                name_part = parts[0].strip()
                                 phone_part = parts[1].strip()
-                                # Skip if name is a known default (user's own name)
-                                default_names = ['גל כהנסיוס', 'gal cohensius', 'Gal Cohensius', 'GAL COHENSIUS', 
-                                               'Unknown', 'unknown', 'UNKNOWN']
-                                if name_part.lower() not in [n.lower() for n in default_names]:
-                                    # Valid name found, use it
-                                    rec['recommender'] = enhanced_recommender
-                                # If name is a default, preserve original phone number (don't replace with "גל כהנסיוס - phone")
-                                # Original recommender is already the sender phone number, so keep it
+                                # Use just the phone number, not the name
+                                rec['recommender'] = phone_part
                         elif not orig_recommender or orig_recommender == 'Unknown':
-                            # No original recommender, use enhanced (but validate it's not a default)
-                                default_names = ['גל כהנסיוס', 'gal cohensius']
-                                if enhanced_recommender.lower() not in [n.lower() for n in default_names]:
-                                    rec['recommender'] = enhanced_recommender
+                            # No original recommender, use enhanced (but only if it's a phone number, not a name)
+                            # Check if it looks like a phone number (contains digits)
+                            if re.search(r'\d', enhanced_recommender):
+                                rec['recommender'] = enhanced_recommender
                 else:
                     # No match found - this recommendation was likely filtered by OpenAI
                     unmatched += 1
@@ -924,29 +914,22 @@ def merge_enhancements(original: List[Dict], enhanced: List[Dict]) -> List[Dict]
                     # No original context, use enhanced
                     merged_rec['context'] = enhanced_context
             
-            # Update recommender with name if enhanced version has it
+            # Keep recommender as phone number only - do NOT add names
+            # If enhanced version has "Name - Phone" format, extract just the phone part
             enhanced_recommender = get_field(enhanced_rec, 'recommender') or enhanced_rec.get('recommender', '')
             orig_recommender = orig_rec.get('recommender', '')
             if enhanced_recommender and enhanced_recommender != orig_recommender:
-                # Only update if we have a valid name (not a default/guess)
-                # Check if enhanced has "Name - Phone" format
+                # If enhanced has "Name - Phone" format, extract just the phone part
                 if ' - ' in enhanced_recommender:
                     parts = enhanced_recommender.split(' - ', 1)
                     if len(parts) == 2:
-                        name_part = parts[0].strip()
                         phone_part = parts[1].strip()
-                        # Skip if name is a known default (user's own name)
-                        default_names = ['גל כהנסיוס', 'gal cohensius', 'Gal Cohensius', 'GAL COHENSIUS', 
-                                       'Unknown', 'unknown', 'UNKNOWN']
-                        if name_part.lower() not in [n.lower() for n in default_names]:
-                            # Valid name found, use it
-                            merged_rec['recommender'] = enhanced_recommender
-                        # If name is a default, preserve original phone number (don't replace with "גל כהנסיוס - phone")
-                        # Original recommender is already the sender phone number, so keep it
+                        # Use just the phone number, not the name
+                        merged_rec['recommender'] = phone_part
                 elif not orig_recommender or orig_recommender == 'Unknown':
-                    # No original recommender, use enhanced (but validate it's not a default)
-                    default_names = ['גל כהנסיוס', 'gal cohensius']
-                    if enhanced_recommender.lower() not in [n.lower() for n in default_names]:
+                    # No original recommender, use enhanced (but only if it's a phone number, not a name)
+                    # Check if it looks like a phone number (contains digits)
+                    if re.search(r'\d', enhanced_recommender):
                         merged_rec['recommender'] = enhanced_recommender
             
             merged.append(merged_rec)
