@@ -8,14 +8,15 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import (
-    APIRouter, UploadFile, File, HTTPException, Depends, BackgroundTasks
+    APIRouter, UploadFile, File, HTTPException, Depends, BackgroundTasks, Query
 )
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
+from typing import List
 
 from backend.database import Session as DBSession, Result, get_db
 from backend.schemas import (
-    UploadResponse, StatusResponse, ResultsResponse, HealthResponse
+    UploadResponse, StatusResponse, ResultsResponse, HealthResponse, SessionInfoResponse
 )
 from backend.services import process_upload
 from backend.config import settings
@@ -41,7 +42,7 @@ async def upload_file(
     Returns session_id for tracking processing status.
     """
     # Validate file type
-    if not file.filename.endswith('.zip'):
+    if not file.filename or not file.filename.endswith('.zip'):
         raise HTTPException(status_code=400, detail="Only .zip files are allowed")
     
     # Validate file size
@@ -69,7 +70,7 @@ async def upload_file(
             f.write(file_content)
         
         # Update session status to processing
-        session.status = "processing"
+        session.status = "processing"  # type: ignore
         db.commit()
         
         # Start background processing task
@@ -79,14 +80,14 @@ async def upload_file(
             temp_file
         )
         
-        return UploadResponse(session_id=session_id, status="processing")
+        return UploadResponse(session_id=session_id, status="processing")  # type: ignore
         
     except Exception as e:
         # Clean up on error
         if temp_file and temp_file.exists():
             temp_file.unlink()
-        session.status = "error"
-        session.error_message = str(e)
+        session.status = "error"  # type: ignore
+        session.error_message = str(e)  # type: ignore
         db.commit()
         raise HTTPException(status_code=500, detail=f"Error processing upload: {str(e)}")
 
@@ -119,17 +120,17 @@ async def process_upload_task(session_id: str, zip_file_path: Path):
             task_db.add(result)
             
             # Update session status
-            session.status = "completed"
+            session.status = "completed"  # type: ignore
             task_db.commit()
             
         except TimeoutError:
-            session.status = "timeout"
-            session.error_message = "Processing exceeded timeout limit"
+            session.status = "timeout"  # type: ignore
+            session.error_message = "Processing exceeded timeout limit"  # type: ignore
             task_db.commit()
             
         except Exception as e:
-            session.status = "error"
-            session.error_message = str(e)
+            session.status = "error"  # type: ignore
+            session.error_message = str(e)  # type: ignore
             task_db.commit()
             
     finally:
@@ -148,9 +149,61 @@ async def get_status(session_id: UUID, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Session not found")
     
     return StatusResponse(
-        status=session.status,
-        error_message=session.error_message
+        status=session.status,  # type: ignore
+        error_message=session.error_message  # type: ignore
     )
+
+
+@router.get("/sessions", response_model=List[SessionInfoResponse])
+async def list_sessions(
+    status: Optional[str] = Query(None, description="Filter by status (pending, processing, completed, error, timeout)"),
+    limit: int = Query(50, ge=1, le=500, description="Maximum number of sessions to return"),
+    db: Session = Depends(get_db)
+):
+    """
+    List all sessions, optionally filtered by status.
+    
+    Returns session information including ID, status, creation date, and whether results are available.
+    """
+    query = db.query(DBSession)
+    
+    # Filter by status if provided
+    if status:
+        valid_statuses = ["pending", "processing", "completed", "error", "timeout"]
+        if status not in valid_statuses:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid status. Must be one of: {', '.join(valid_statuses)}"
+            )
+        query = query.filter(DBSession.status == status)
+    
+    # Order by creation date (newest first) and limit
+    sessions = query.order_by(DBSession.created_at.desc()).limit(limit).all()
+    
+    # Build response with result information
+    session_list = []
+    for session in sessions:
+        result = db.query(Result).filter(Result.session_id == session.id).first()
+        has_results = result is not None
+        
+        recommendation_count = None
+        openai_enhanced = None
+        if has_results and isinstance(result.recommendations, list):
+            recommendation_count = len(result.recommendations)
+            openai_enhanced = result.openai_enhanced  # type: ignore
+        
+        session_list.append(SessionInfoResponse(
+            session_id=session.id,  # type: ignore
+            created_at=session.created_at,  # type: ignore
+            status=session.status,  # type: ignore
+            error_message=session.error_message,  # type: ignore
+            has_results=has_results,
+            recommendation_count=recommendation_count,
+            openai_enhanced=openai_enhanced,  # type: ignore
+            expires_at=session.expires_at  # type: ignore
+        ))
+    
+    return session_list
 
 
 @router.get("/results/{session_id}", response_model=ResultsResponse)
@@ -164,28 +217,28 @@ async def get_results(session_id: UUID, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Session not found")
     
     # Check if expired
-    if session.expires_at < datetime.utcnow():
+    if session.expires_at < datetime.utcnow():  # type: ignore
         raise HTTPException(status_code=410, detail="Results have expired")
     
     # Get result
     result = db.query(Result).filter(Result.session_id == session_id).first()
     
     if not result:
-        if session.status == "completed":
+        if session.status == "completed":  # type: ignore
             raise HTTPException(status_code=404, detail="Results not found")
         else:
             raise HTTPException(
                 status_code=202,
-                detail=f"Processing not complete. Status: {session.status}"
+                detail=f"Processing not complete. Status: {session.status}"  # type: ignore
             )
     
     # Check if result expired
-    if result.expires_at < datetime.utcnow():
+    if result.expires_at < datetime.utcnow():  # type: ignore
         raise HTTPException(status_code=410, detail="Results have expired")
     
     return ResultsResponse(
-        recommendations=result.recommendations,
-        openai_enhanced=result.openai_enhanced,
-        created_at=result.created_at
+        recommendations=result.recommendations,  # type: ignore
+        openai_enhanced=result.openai_enhanced,  # type: ignore
+        created_at=result.created_at  # type: ignore
     )
 

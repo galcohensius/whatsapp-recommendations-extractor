@@ -31,3 +31,14 @@ class HealthResponse(BaseModel):
     status: str = "healthy"
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
+
+class SessionInfoResponse(BaseModel):
+    """Response schema for session information in list."""
+    session_id: UUID
+    created_at: datetime
+    status: str
+    error_message: Optional[str] = None
+    has_results: bool
+    recommendation_count: Optional[int] = None
+    openai_enhanced: Optional[bool] = None
+    expires_at: datetime
