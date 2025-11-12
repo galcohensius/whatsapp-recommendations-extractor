@@ -51,6 +51,8 @@ function uploadFile(file, onProgress = null) {
                 } catch (e) {
                     reject(new Error('Invalid response from server'));
                 }
+            } else if (xhr.status === 502) {
+                reject(new Error('Backend service is not available (502 Bad Gateway). The service at ' + API_BASE_URL + ' may not be deployed or is currently down. Please check the Render dashboard or deploy the backend service.'));
             } else {
                 try {
                     const error = JSON.parse(xhr.responseText);
@@ -63,7 +65,27 @@ function uploadFile(file, onProgress = null) {
         
         // Handle errors
         xhr.addEventListener('error', () => {
-            reject(new Error('Network error during upload'));
+            // Provide more specific error message
+            let errorMsg = 'Network error during upload. ';
+            if (xhr.status === 0) {
+                errorMsg += 'Unable to connect to the server. Please check:\n';
+                errorMsg += '1. The backend service is running and deployed\n';
+                errorMsg += '2. The API URL is correct (currently: ' + API_BASE_URL + ')\n';
+                errorMsg += '3. For local development, update API_BASE_URL in api.js to "http://localhost:8000"\n';
+                errorMsg += '4. There are no CORS or firewall issues';
+            } else if (xhr.status === 502) {
+                errorMsg += 'Backend service is not available (502 Bad Gateway). ';
+                errorMsg += 'The service at ' + API_BASE_URL + ' may not be deployed or is currently down. ';
+                errorMsg += 'Please check the Render dashboard or deploy the backend service.';
+            } else {
+                errorMsg += 'HTTP Status: ' + xhr.status;
+            }
+            reject(new Error(errorMsg));
+        });
+        
+        // Handle timeout
+        xhr.addEventListener('timeout', () => {
+            reject(new Error('Upload timeout. The server took too long to respond.'));
         });
         
         xhr.addEventListener('abort', () => {
@@ -72,6 +94,7 @@ function uploadFile(file, onProgress = null) {
         
         // Start upload
         xhr.open('POST', `${API_BASE_URL}/api/upload`);
+        xhr.timeout = 60000; // 60 second timeout
         xhr.send(formData);
     });
     
