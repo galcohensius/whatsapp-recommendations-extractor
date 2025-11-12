@@ -47,6 +47,8 @@ def extract_service_from_name(name: str) -> Optional[str]:
         r'מפוח\s+גג',  # roof blower
         r'עורך\s+דין',  # lawyer
         r'מתקן\s+אופניים',  # bicycle repair
+        r'מונית\s+גדולה',  # large taxi
+        r'מורה\s+לאנגלית',  # English teacher
     ]
     
     # Single-word service keywords
@@ -361,26 +363,47 @@ def parse_vcf_file(vcf_path: Path) -> Optional[Dict[str, Optional[str]]]:
                 phone = normalize_phone(phone_raw)
                 break
         
-        # Intelligently extract service:
-        # 1. First try from name field (e.g., "דויד - מתקין מזגנים")
-        service = None
-        if name:
-            service = extract_service_from_name(name)
-            # If service was extracted from name, clean the name
-            if service:
-                name = clean_name_after_service_extraction(name, service)
+        # Extract X-WA-BIZ-NAME (WhatsApp business name) - use as service if available
+        biz_name = None
+        biz_name_match = re.search(r'X-WA-BIZ-NAME:([^\r\n]+)', content)
+        if biz_name_match:
+            biz_name = biz_name_match.group(1).strip()
         
-        # 2. If no service from name, try filename
+        # Extract X-WA-BIZ-DESCRIPTION - add to context if available
+        biz_description = None
+        biz_desc_match = re.search(r'X-WA-BIZ-DESCRIPTION:([^\r\n]+)', content)
+        if biz_desc_match:
+            biz_description = biz_desc_match.group(1).strip()
+        
+        # Intelligently extract service:
+        # 1. First try X-WA-BIZ-NAME (preferred)
+        service = biz_name
+        
+        # 2. If no X-WA-BIZ-NAME, try from name field (e.g., "דויד - מתקין מזגנים")
+        # BUT preserve the original name - don't modify it
+        if not service and name:
+            service = extract_service_from_name(name)
+            # Do NOT modify the name here - keep the full original name
+        
+        # 3. If no service from name, try filename
         if not service:
             service = extract_service_from_filename(vcf_path.name, name)
         
+        # Build context - include X-WA-BIZ-DESCRIPTION if available
+        context = None
+        if biz_description:
+            context = biz_description
+        
         if name and phone:
-            return {
-                'name': name,
+            result = {
+                'name': name,  # Keep original full name
                 'phone': phone,
                 'service': service,
                 'filename': vcf_path.name
             }
+            if context:
+                result['context'] = context
+            return result
     except Exception as e:
         print(f"Error parsing {vcf_path}: {e}")
     return None

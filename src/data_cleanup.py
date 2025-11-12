@@ -19,6 +19,75 @@ sys.path.insert(0, str(Path(__file__).parent))
 from extract_txt_and_vcf import is_valid_name, extract_service_from_name, clean_name_after_service_extraction
 
 
+def clean_invalid_characters(text: str) -> str:
+    """Remove invalid Unicode characters and control characters.
+    
+    Removes characters like replacement characters and other invalid Unicode.
+    """
+    if not text:
+        return text
+    
+    # Remove replacement characters and other invalid Unicode
+    cleaned = text.replace('\ufffd', '')  # Replacement character
+    cleaned = cleaned.replace('\u200b', '')  # Zero-width space
+    cleaned = cleaned.replace('\u200c', '')  # Zero-width non-joiner
+    cleaned = cleaned.replace('\u200d', '')  # Zero-width joiner
+    cleaned = cleaned.replace('\ufeff', '')  # Zero-width no-break space
+    
+    # Remove other control characters (keep newlines, tabs, carriage returns)
+    cleaned = ''.join(char for char in cleaned if ord(char) >= 32 or char in '\n\r\t')
+    
+    return cleaned
+
+
+def is_valid_service(service: str) -> bool:
+    """Check if a service string is valid (not a conversational phrase or invalid pattern).
+    
+    Returns False for invalid services like:
+    - "את המספר", "בנמצא", "בקהל"
+    - "יש המלצה היכןממי", "יש לי בבית", "לך את הטלפון שלו"
+    - "למישהוא המלצות", "לעבור לטלגרם", "לפני שאני פונה למידרג"
+    - "מומלץ", "מעוניינים", "מתעסק"
+    - "2 contacts", "3 contacts"
+    """
+    if not service:
+        return False
+    
+    service = service.strip()
+    
+    # Invalid service patterns (conversational phrases, not actual services)
+    invalid_patterns = [
+        r'^את\s+המספר',  # "את המספר"
+        r'^בנמצא$',  # "בנמצא"
+        r'^בקהל$',  # "בקהל"
+        r'^יש\s+המלצה\s+היכןממי',  # "יש המלצה היכןממי"
+        r'^יש\s+לי\s+בבית',  # "יש לי בבית"
+        r'^לך\s+את\s+הטלפון\s+שלו',  # "לך את הטלפון שלו"
+        r'^למישהוא\s+המלצות',  # "למישהוא המלצות"
+        r'^לעבור\s+לטלגרם',  # "לעבור לטלגרם"
+        r'^לפני\s+שאני\s+פונה\s+למידרג',  # "לפני שאני פונה למידרג"
+        r'^מומלץ$',  # "מומלץ"
+        r'^מעוניינים$',  # "מעוניינים"
+        r'^מתעסק$',  # "מתעסק"
+        r'^\d+\s+contacts?$',  # "2 contacts", "3 contacts"
+    ]
+    
+    for pattern in invalid_patterns:
+        if re.match(pattern, service, re.IGNORECASE):
+            return False
+    
+    # Additional checks: very short services (less than 2 chars) are likely invalid
+    if len(service) < 2:
+        return False
+    
+    # Services that are just common words without meaning
+    invalid_words = ['מומלץ', 'מעוניינים', 'מתעסק', 'בנמצא', 'בקהל']
+    if service.lower() in [w.lower() for w in invalid_words]:
+        return False
+    
+    return True
+
+
 def clean_recommender_field(recommender: str) -> str:
     """Clean recommender field to show only phone number in local format (without +972).
     
@@ -264,8 +333,10 @@ def clean_service_text(service: str) -> str:
         cleaned = 'גנן'
     
     # Normalize "דוד שמש" variations to "דוד שמש"
-    if re.match(r'^דודי?\s*שמש$', cleaned, re.IGNORECASE) or cleaned == 'דודים':
+    if re.match(r'^דודי?\s*שמש$', cleaned, re.IGNORECASE) or cleaned == 'דודים' or cleaned == 'דודי שמש':
         cleaned = 'דוד שמש'
+    # Also handle "דודי שמש" in the middle of text
+    cleaned = re.sub(r'דודי\s+שמש', 'דוד שמש', cleaned, flags=re.IGNORECASE)
     
     # Remove descriptive text after service
     cleaned = re.sub(r'^דקים\s+במחירים\s+סבירים.*$', 'דקים', cleaned, flags=re.IGNORECASE)
@@ -416,19 +487,33 @@ def pre_enhancement_cleanup(recommendations: List[Dict], messages: Optional[List
     print(f"  Removed {duplicates_removed} duplicates")
     print(f"  Unique recommendations: {len(unique_recs)}")
     
-    # Step 2: Clean service fields
+    # Step 2: Clean service fields and remove invalid services
     print("\nStep 2: Cleaning service fields...")
     services_cleaned = 0
+    invalid_services_removed = 0
     
     for rec in unique_recs:
         service = rec.get('service')
         if service and isinstance(service, str):
-            cleaned = clean_service_text(service)
-            if cleaned != service:
-                rec['service'] = cleaned if cleaned else None
-                services_cleaned += 1
+            # Clean invalid characters first
+            service = clean_invalid_characters(service)
+            
+            # Check if service is valid
+            if not is_valid_service(service):
+                rec['service'] = None
+                invalid_services_removed += 1
+            else:
+                # Clean service text
+                cleaned = clean_service_text(service)
+                if cleaned != service:
+                    rec['service'] = cleaned if cleaned else None
+                    services_cleaned += 1
+                else:
+                    rec['service'] = cleaned
     
     print(f"  Cleaned {services_cleaned} service fields")
+    if invalid_services_removed > 0:
+        print(f"  Removed {invalid_services_removed} invalid services")
     
     # Step 2.5: Clean context fields (remove vcf/file attached and truecaller URLs)
     print("\nStep 2.5: Cleaning context fields...")
@@ -437,10 +522,14 @@ def pre_enhancement_cleanup(recommendations: List[Dict], messages: Optional[List
     for rec in unique_recs:
         context = rec.get('context')
         if context and isinstance(context, str):
+            # Clean invalid characters first
+            context = clean_invalid_characters(context)
             cleaned = clean_context_text(context)
             if cleaned != context:
                 rec['context'] = cleaned if cleaned else None
                 contexts_cleaned += 1
+            else:
+                rec['context'] = cleaned
     
     print(f"  Cleaned {contexts_cleaned} context fields")
     
@@ -630,19 +719,33 @@ def post_enhancement_cleanup(recommendations: List[Dict]) -> Tuple[List[Dict], D
     """
     print(f"Found {len(recommendations)} recommendations")
     
-    # Step 1: Clean service fields again (in case AI added prefixes)
+    # Step 1: Clean service fields again (in case AI added prefixes) and remove invalid services
     print("\nStep 1: Final service field cleaning...")
     services_cleaned = 0
+    invalid_services_removed = 0
     
     for rec in recommendations:
         service = rec.get('service')
         if service and isinstance(service, str):
-            cleaned = clean_service_text(service)
-            if cleaned != service:
-                rec['service'] = cleaned if cleaned else None
-                services_cleaned += 1
+            # Clean invalid characters first
+            service = clean_invalid_characters(service)
+            
+            # Check if service is valid
+            if not is_valid_service(service):
+                rec['service'] = None
+                invalid_services_removed += 1
+            else:
+                # Clean service text
+                cleaned = clean_service_text(service)
+                if cleaned != service:
+                    rec['service'] = cleaned if cleaned else None
+                    services_cleaned += 1
+                else:
+                    rec['service'] = cleaned
     
     print(f"  Cleaned {services_cleaned} service fields")
+    if invalid_services_removed > 0:
+        print(f"  Removed {invalid_services_removed} invalid services")
     
     # Step 2: Clean context fields again (remove any new issues)
     print("\nStep 2: Final context field cleaning...")
@@ -651,10 +754,14 @@ def post_enhancement_cleanup(recommendations: List[Dict]) -> Tuple[List[Dict], D
     for rec in recommendations:
         context = rec.get('context')
         if context and isinstance(context, str):
+            # Clean invalid characters first
+            context = clean_invalid_characters(context)
             cleaned = clean_context_text(context)
             if cleaned != context:
                 rec['context'] = cleaned if cleaned else None
                 contexts_cleaned += 1
+            else:
+                rec['context'] = cleaned
     
     print(f"  Cleaned {contexts_cleaned} context fields")
     
