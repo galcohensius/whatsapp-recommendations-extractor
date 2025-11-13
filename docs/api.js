@@ -24,7 +24,7 @@ let API_BASE_URL = 'https://whatsapp-recommendations-api.onrender.com';
  * @param {boolean} previewMode - If true, enable preview mode (limit to last N recommendations)
  * @returns {{promise: Promise<{session_id: string, status: string}>, abort: Function}} Object with promise and abort function
  */
-function uploadFile(file, onProgress = null, previewMode = false) {
+function uploadFile(file, onProgress = null, previewMode = true) {
     // Validate file size (5MB)
     const maxSize = 5 * 1024 * 1024; // 5MB in bytes
     if (file.size > maxSize) {

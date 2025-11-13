@@ -38,7 +38,7 @@ async def health_check():
 @router.post("/upload", response_model=UploadResponse, status_code=202)
 async def upload_file(
     file: UploadFile = File(...),
-    preview_mode: bool = Query(False, description="Enable preview mode (limit to last N recommendations)"),
+    preview_mode: bool = Query(True, description="Enable preview mode (limit to last N recommendations)"),
     background_tasks: BackgroundTasks = BackgroundTasks(),
     db: Session = Depends(get_db)
 ):
