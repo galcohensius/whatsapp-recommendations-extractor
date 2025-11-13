@@ -3,7 +3,19 @@
  */
 
 // Default API base URL - update this to your backend URL
-const API_BASE_URL = 'https://whatsapp-recommendations-api.onrender.com';
+let API_BASE_URL = 'https://whatsapp-recommendations-api.onrender.com';
+
+// Validate API_BASE_URL - ensure it's not localhost (which won't work on mobile)
+(function validateApiUrl() {
+    // Check if API_BASE_URL was overridden to localhost
+    if (API_BASE_URL.includes('localhost') || API_BASE_URL.includes('127.0.0.1')) {
+        console.warn('[API] Warning: API_BASE_URL is set to localhost. This will not work on mobile devices or remote access.');
+        console.warn('[API] Current URL:', API_BASE_URL);
+    }
+    
+    // Log the actual URL being used
+    console.log('[API] Using API_BASE_URL:', API_BASE_URL);
+})();
 
 /**
  * Upload a zip file to the backend.
@@ -25,6 +37,18 @@ function uploadFile(file, onProgress = null) {
     if (!file.name.endsWith('.zip')) {
         return {
             promise: Promise.reject(new Error('Only .zip files are allowed')),
+            abort: () => {}
+        };
+    }
+    
+    // Validate API URL before attempting upload
+    const uploadUrl = `${API_BASE_URL}/api/upload`;
+    if (uploadUrl.includes('localhost') || uploadUrl.includes('127.0.0.1')) {
+        return {
+            promise: Promise.reject(new Error(
+                'API URL is set to localhost. This will not work on mobile devices. ' +
+                'Please ensure API_BASE_URL points to your deployed backend (e.g., https://whatsapp-recommendations-api.onrender.com)'
+            )),
             abort: () => {}
         };
     }
@@ -93,8 +117,14 @@ function uploadFile(file, onProgress = null) {
         });
         
         // Start upload
-        xhr.open('POST', `${API_BASE_URL}/api/upload`);
+        xhr.open('POST', uploadUrl);
         xhr.timeout = 60000; // 60 second timeout
+        
+        // Log the actual URL being used (for debugging)
+        if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+            console.log('[Upload] Uploading to:', uploadUrl);
+        }
+        
         xhr.send(formData);
     });
     
