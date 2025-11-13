@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CORS Test - WhatsApp Recommendations Extractor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        .btn:hover {
+            background: #5568d3;
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .result {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            font-family: monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            min-height: 100px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .result.success {
+            background: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+
+        .result.error {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+
+        .result.info {
+            background: #d1ecf1;
+            border-color: #bee5eb;
+            color: #0c5460;
+        }
+
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+
+        .status.testing {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 CORS Test</h1>
+            <p>Test CORS connectivity from mobile browser</p>
+        </div>
+
+        <div class="content">
+            <button class="btn" id="testBtn" onclick="testPing()">Test Ping Endpoint</button>
+            <button class="btn" id="testOptionsBtn" onclick="testOptions()">Test OPTIONS Preflight</button>
+            
+            <div id="status"></div>
+            <div class="result" id="result">Click a button above to test CORS connectivity...</div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'https://whatsapp-recommendations-api.onrender.com';
+        
+        async function testPing() {
+            const resultEl = document.getElementById('result');
+            const statusEl = document.getElementById('status');
+            const btn = document.getElementById('testBtn');
+            
+            btn.disabled = true;
+            resultEl.className = 'result info';
+            resultEl.textContent = 'Testing POST request to /api/ping...\n\n';
+            statusEl.className = 'status testing';
+            statusEl.textContent = '⏳ Testing...';
+            
+            try {
+                const startTime = Date.now();
+                const response = await fetch(`${API_BASE_URL}/api/ping`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({test: 'data', timestamp: new Date().toISOString()})
+                });
+                
+                const elapsed = Date.now() - startTime;
+                const data = await response.json();
+                
+                resultEl.className = 'result success';
+                resultEl.textContent = `✅ SUCCESS!\n\n` +
+                    `Status: ${response.status} ${response.statusText}\n` +
+                    `Time: ${elapsed}ms\n\n` +
+                    `Response:\n${JSON.stringify(data, null, 2)}\n\n` +
+                    `CORS Headers:\n` +
+                    `  Access-Control-Allow-Origin: ${response.headers.get('access-control-allow-origin') || 'not set'}\n` +
+                    `  Access-Control-Allow-Credentials: ${response.headers.get('access-control-allow-credentials') || 'not set'}`;
+                
+                statusEl.className = 'status success';
+                statusEl.textContent = '✅ CORS is working!';
+                
+            } catch (error) {
+                resultEl.className = 'result error';
+                resultEl.textContent = `❌ ERROR!\n\n` +
+                    `Error: ${error.message}\n\n` +
+                    `This indicates a CORS or network issue.\n` +
+                    `Check the browser console for more details.`;
+                
+                statusEl.className = 'status error';
+                statusEl.textContent = '❌ CORS test failed';
+                
+                console.error('CORS Test Error:', error);
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        async function testOptions() {
+            const resultEl = document.getElementById('result');
+            const statusEl = document.getElementById('status');
+            const btn = document.getElementById('testOptionsBtn');
+            
+            btn.disabled = true;
+            resultEl.className = 'result info';
+            resultEl.textContent = 'Testing OPTIONS preflight request...\n\n';
+            statusEl.className = 'status testing';
+            statusEl.textContent = '⏳ Testing OPTIONS...';
+            
+            try {
+                const startTime = Date.now();
+                const response = await fetch(`${API_BASE_URL}/api/ping`, {
+                    method: 'OPTIONS',
+                    headers: {
+                        'Origin': window.location.origin || 'null',
+                        'Access-Control-Request-Method': 'POST',
+                        'Access-Control-Request-Headers': 'content-type'
+                    }
+                });
+                
+                const elapsed = Date.now() - startTime;
+                
+                resultEl.className = 'result success';
+                resultEl.textContent = `✅ OPTIONS Preflight SUCCESS!\n\n` +
+                    `Status: ${response.status} ${response.statusText}\n` +
+                    `Time: ${elapsed}ms\n\n` +
+                    `CORS Preflight Headers:\n` +
+                    `  Access-Control-Allow-Origin: ${response.headers.get('access-control-allow-origin') || 'not set'}\n` +
+                    `  Access-Control-Allow-Methods: ${response.headers.get('access-control-allow-methods') || 'not set'}\n` +
+                    `  Access-Control-Allow-Headers: ${response.headers.get('access-control-allow-headers') || 'not set'}\n` +
+                    `  Access-Control-Allow-Credentials: ${response.headers.get('access-control-allow-credentials') || 'not set'}\n` +
+                    `  Access-Control-Max-Age: ${response.headers.get('access-control-max-age') || 'not set'}`;
+                
+                statusEl.className = 'status success';
+                statusEl.textContent = '✅ OPTIONS preflight is working!';
+                
+            } catch (error) {
+                resultEl.className = 'result error';
+                resultEl.textContent = `❌ OPTIONS Preflight ERROR!\n\n` +
+                    `Error: ${error.message}\n\n` +
+                    `This indicates a CORS preflight issue.\n` +
+                    `Check the browser console for more details.`;
+                
+                statusEl.className = 'status error';
+                statusEl.textContent = '❌ OPTIONS preflight failed';
+                
+                console.error('OPTIONS Test Error:', error);
+            } finally {
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
+
