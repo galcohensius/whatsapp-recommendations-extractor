@@ -239,6 +239,128 @@
         .link-btn:hover {
             background: #218838;
         }
+
+        /* Mobile-friendly styles */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .container {
+                border-radius: 10px;
+            }
+
+            .header {
+                padding: 20px 15px;
+            }
+
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .content {
+                padding: 20px 15px;
+            }
+
+            .upload-area {
+                padding: 30px 20px;
+            }
+
+            .upload-icon {
+                font-size: 3em;
+            }
+
+            .upload-text {
+                font-size: 1em;
+            }
+
+            .upload-hint {
+                font-size: 0.85em;
+            }
+
+            .instructions {
+                padding: 15px;
+                margin-bottom: 20px;
+            }
+
+            .instructions h3 {
+                font-size: 1em;
+                margin-bottom: 10px;
+            }
+
+            .instructions ol {
+                margin-left: 15px;
+                line-height: 1.6;
+            }
+
+            .btn {
+                padding: 14px 20px;
+                font-size: 16px;
+                min-height: 44px; /* Touch-friendly minimum size */
+                width: 100%;
+                margin-top: 15px;
+            }
+
+            .btn-group {
+                flex-direction: column;
+            }
+
+            .btn-cancel {
+                margin-left: 0;
+                margin-top: 10px;
+            }
+
+            .progress-bar {
+                height: 25px;
+            }
+
+            .session-info {
+                padding: 15px;
+                margin-top: 20px;
+            }
+
+            .link-btn {
+                display: block;
+                text-align: center;
+                padding: 12px 20px;
+                min-height: 44px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 1.5em;
+            }
+
+            .header p {
+                font-size: 0.9em;
+            }
+
+            .content {
+                padding: 15px 10px;
+            }
+
+            .upload-area {
+                padding: 25px 15px;
+            }
+
+            .upload-icon {
+                font-size: 2.5em;
+            }
+
+            .instructions {
+                padding: 12px;
+            }
+
+            .instructions ol {
+                font-size: 0.9em;
+            }
+
+            .btn {
+                padding: 12px 15px;
+                font-size: 15px;
+            }
+        }
     </style>
 </head>
 <body>

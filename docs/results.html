@@ -456,21 +456,106 @@
         }
 
         @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .container {
+                border-radius: 10px;
+            }
+
+            .header {
+                padding: 20px 15px;
+            }
+
             .header h1 {
                 font-size: 1.8em;
             }
 
+            .header .stats {
+                font-size: 1em;
+            }
+
+            .header .session-id {
+                font-size: 0.75em;
+                margin-top: 5px;
+            }
+
+            .controls {
+                padding: 15px;
+            }
+
             .controls-row {
                 flex-direction: column;
+                gap: 10px;
             }
 
             .search-box {
                 width: 100%;
+                min-width: unset;
+                padding: 14px 15px;
+                font-size: 16px; /* Prevents zoom on iOS */
+                min-height: 44px; /* Touch-friendly */
             }
 
             .date-filter {
                 width: 100%;
                 flex-direction: column;
+                align-items: stretch;
+            }
+
+            .date-input {
+                width: 100%;
+                padding: 12px;
+                font-size: 16px; /* Prevents zoom on iOS */
+                min-height: 44px; /* Touch-friendly */
+            }
+
+            .quick-filters {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .filter-btn {
+                flex: 1;
+                min-width: 0;
+                padding: 12px 10px;
+                font-size: 13px;
+                min-height: 44px; /* Touch-friendly */
+            }
+
+            .group-toggle {
+                width: 100%;
+                padding: 14px 20px;
+                font-size: 16px;
+                min-height: 44px; /* Touch-friendly */
+            }
+
+            .export-buttons {
+                width: 100%;
+                flex-direction: column;
+            }
+
+            .export-btn {
+                width: 100%;
+                padding: 14px 20px;
+                font-size: 16px;
+                min-height: 44px; /* Touch-friendly */
+                justify-content: center;
+            }
+
+            .new-upload-btn {
+                width: 100%;
+                margin-right: 0;
+                margin-top: 10px;
+                padding: 14px 20px;
+                font-size: 16px;
+                min-height: 44px; /* Touch-friendly */
+                text-align: center;
+            }
+
+            .table-container {
+                max-height: 60vh;
             }
 
             table {
@@ -478,11 +563,65 @@
             }
 
             th, td {
-                padding: 8px 6px;
+                padding: 10px 8px;
+            }
+
+            th {
+                font-size: 11px;
             }
 
             .context {
                 max-width: 150px;
+            }
+
+            .service-badge {
+                font-size: 11px;
+                padding: 3px 8px;
+            }
+
+            .phone-link {
+                font-size: 13px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 1.5em;
+            }
+
+            .header .stats {
+                font-size: 0.9em;
+            }
+
+            .controls {
+                padding: 12px;
+            }
+
+            .search-box {
+                padding: 12px;
+            }
+
+            .filter-btn {
+                font-size: 12px;
+                padding: 10px 8px;
+            }
+
+            table {
+                font-size: 11px;
+            }
+
+            th, td {
+                padding: 8px 5px;
+            }
+
+            .context {
+                max-width: 120px;
+                font-size: 11px;
+            }
+
+            .service-group-header {
+                padding: 10px 12px;
+                font-size: 14px;
             }
         }
     </style>
@@ -512,9 +651,6 @@
                     id="search-input" 
                     class="search-box" 
                     placeholder="Search by name, service, phone, recommender...">
-                <button class="group-toggle" id="group-toggle">
-                    Group by Service
-                </button>
                 <div class="export-buttons">
                     <button class="export-btn" id="download-csv-btn">
                         📥 Download CSV
@@ -527,15 +663,11 @@
 
             <div class="controls-row">
                 <div class="date-filter">
-                    <label>From Date:</label>
-                    <input type="date" id="date-from" class="date-input">
-                    <label>To Date:</label>
-                    <input type="date" id="date-to" class="date-input">
                     <div class="quick-filters">
-                        <button class="filter-btn" data-quick="month">Last Month</button>
+                        <button class="filter-btn active" data-quick="month">Last Month</button>
                         <button class="filter-btn" data-quick="6months">6 Months</button>
                         <button class="filter-btn" data-quick="year">Last Year</button>
-                        <button class="filter-btn active" data-quick="all">All</button>
+                        <button class="filter-btn" data-quick="all">All</button>
                     </div>
                 </div>
             </div>
@@ -573,7 +705,6 @@
                     </tbody>
                 </table>
             </div>
-            <div id="grouped-content" style="display: none;"></div>
         </div>
     </div>
 
@@ -585,8 +716,8 @@
         let recommendations = [];
         let filteredRecommendations = [];
         let sortConfig = { column: 'service', direction: 'asc' };
-        let isGrouped = false;
         let debounceTimer = null;
+        let dateRange = { from: null, to: null }; // Store date range for filtering
         
         // Get session ID from URL
         const urlParams = new URLSearchParams(window.location.search);
@@ -598,19 +729,14 @@
             document.getElementById('header-session-id').style.display = 'block';
         }
 
-        // Load preferences from localStorage
+        // Load preferences from localStorage (if needed in future)
         function loadPreferences() {
-            const savedGroup = localStorage.getItem('groupByService');
-            if (savedGroup === 'true') {
-                isGrouped = true;
-                document.getElementById('group-toggle').classList.add('active');
-                document.getElementById('group-toggle').textContent = 'Ungroup';
-            }
+            // Reserved for future preferences
         }
 
-        // Save preferences to localStorage
+        // Save preferences to localStorage (if needed in future)
         function savePreferences() {
-            localStorage.setItem('groupByService', isGrouped.toString());
+            // Reserved for future preferences
         }
 
         // Format phone number for display and tel: link
@@ -793,7 +919,6 @@
             // Hide any existing results/errors and show loading state
             document.getElementById('no-results').style.display = 'none';
             document.getElementById('table-wrapper').style.display = 'none';
-            document.getElementById('grouped-content').style.display = 'none';
             document.getElementById('error-message').style.display = 'none';
             
             try {
@@ -921,8 +1046,6 @@
 
         function filterRecommendations() {
             const searchTerm = document.getElementById('search-input').value.toLowerCase();
-            const dateFrom = document.getElementById('date-from').value;
-            const dateTo = document.getElementById('date-to').value;
 
             filteredRecommendations = recommendations.filter(rec => {
                 // Text search
@@ -941,17 +1064,17 @@
                 }
 
                 // Date range filter
-                if (dateFrom || dateTo) {
+                if (dateRange.from || dateRange.to) {
                     const recDate = getDateOnly(rec.date);
                     if (!recDate) return false;
 
-                    if (dateFrom) {
-                        const fromDate = new Date(dateFrom);
+                    if (dateRange.from) {
+                        const fromDate = new Date(dateRange.from);
                         if (recDate < fromDate) return false;
                     }
 
-                    if (dateTo) {
-                        const toDate = new Date(dateTo);
+                    if (dateRange.to) {
+                        const toDate = new Date(dateRange.to);
                         toDate.setHours(23, 59, 59, 999);
                         if (recDate > toDate) return false;
                     }
@@ -1013,20 +1136,6 @@
             });
         }
 
-        function groupRecommendations() {
-            const grouped = {};
-            
-            filteredRecommendations.forEach(rec => {
-                const service = rec.service || 'No Service';
-                if (!grouped[service]) {
-                    grouped[service] = [];
-                }
-                grouped[service].push(rec);
-            });
-
-            return grouped;
-        }
-
         function renderTable() {
             const tbody = document.getElementById('table-body');
             tbody.innerHTML = '';
@@ -1040,29 +1149,20 @@
             if (filteredRecommendations.length === 0) {
                 document.getElementById('no-results').style.display = 'block';
                 document.getElementById('table-wrapper').style.display = 'none';
-                document.getElementById('grouped-content').style.display = 'none';
                 return;
             }
 
             document.getElementById('no-results').style.display = 'none';
+            document.getElementById('table-wrapper').style.display = 'block';
 
-            if (isGrouped) {
-                document.getElementById('table-wrapper').style.display = 'none';
-                document.getElementById('grouped-content').style.display = 'block';
-                renderGrouped();
-            } else {
-                document.getElementById('grouped-content').style.display = 'none';
-                document.getElementById('table-wrapper').style.display = 'block';
-
-                filteredRecommendations.forEach(rec => {
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = createRowHTML(rec);
-                    tbody.appendChild(tr);
-                });
-                
-                // Add column hover effect
-                setupColumnHover();
-            }
+            filteredRecommendations.forEach(rec => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = createRowHTML(rec);
+                tbody.appendChild(tr);
+            });
+            
+            // Add column hover effect
+            setupColumnHover();
         }
         
         function setupColumnHover() {
@@ -1095,65 +1195,6 @@
                     if (headers[columnIndex]) {
                         headers[columnIndex].classList.remove('column-hover');
                     }
-                });
-            });
-        }
-
-        function renderGrouped() {
-            const grouped = groupRecommendations();
-            const container = document.getElementById('grouped-content');
-            container.innerHTML = '';
-
-            // Sort groups by service name, with "No Service" at the bottom
-            const sortedGroups = Object.keys(grouped).sort((a, b) => {
-                const noService = 'No Service';
-                if (a === noService && b !== noService) return 1;  // a goes to bottom
-                if (a !== noService && b === noService) return -1; // b goes to bottom
-                return a.localeCompare(b, 'en'); // Normal alphabetical sort
-            });
-
-            sortedGroups.forEach(service => {
-                const groupDiv = document.createElement('div');
-                groupDiv.className = 'service-group';
-                groupDiv.innerHTML = `
-                    <div class="service-group-header" data-service="${escapeHtml(service)}">
-                        <span>
-                            <span class="group-count">${grouped[service].length}</span>
-                            ${escapeHtml(service)}
-                        </span>
-                    </div>
-                    <div class="service-group-content">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Phone</th>
-                                    <th>Date</th>
-                                    <th class="recommender-col">Recommender</th>
-                                    <th>Context</th>
-                                </tr>
-                            </thead>
-                            <tbody id="group-${escapeHtml(service)}-body">
-                            </tbody>
-                        </table>
-                    </div>
-                `;
-                container.appendChild(groupDiv);
-
-                const groupBody = document.getElementById(`group-${escapeHtml(service)}-body`);
-                grouped[service].forEach(rec => {
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = createRowHTML(rec, true);
-                    groupBody.appendChild(tr);
-                });
-            });
-
-            // Add collapse/expand functionality
-            document.querySelectorAll('.service-group-header').forEach(header => {
-                header.addEventListener('click', function() {
-                    const content = this.nextElementSibling;
-                    this.classList.toggle('collapsed');
-                    content.classList.toggle('collapsed');
                 });
             });
         }
@@ -1206,8 +1247,6 @@
             }, 300);
         });
 
-        document.getElementById('date-from').addEventListener('change', applyFiltersAndRender);
-        document.getElementById('date-to').addEventListener('change', applyFiltersAndRender);
 
         document.querySelectorAll('th.sortable').forEach(th => {
             th.addEventListener('click', function(e) {
@@ -1231,44 +1270,29 @@
 
                 const quick = this.dataset.quick;
                 const today = new Date();
-                const fromInput = document.getElementById('date-from');
-                const toInput = document.getElementById('date-to');
 
                 if (quick === 'month') {
                     const monthAgo = new Date(today);
                     monthAgo.setMonth(monthAgo.getMonth() - 1);
-                    fromInput.value = monthAgo.toISOString().split('T')[0];
-                    toInput.value = today.toISOString().split('T')[0];
+                    dateRange.from = monthAgo.toISOString().split('T')[0];
+                    dateRange.to = today.toISOString().split('T')[0];
                 } else if (quick === '6months') {
                     const sixMonthsAgo = new Date(today);
                     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-                    fromInput.value = sixMonthsAgo.toISOString().split('T')[0];
-                    toInput.value = today.toISOString().split('T')[0];
+                    dateRange.from = sixMonthsAgo.toISOString().split('T')[0];
+                    dateRange.to = today.toISOString().split('T')[0];
                 } else if (quick === 'year') {
                     const yearAgo = new Date(today);
                     yearAgo.setFullYear(yearAgo.getFullYear() - 1);
-                    fromInput.value = yearAgo.toISOString().split('T')[0];
-                    toInput.value = today.toISOString().split('T')[0];
+                    dateRange.from = yearAgo.toISOString().split('T')[0];
+                    dateRange.to = today.toISOString().split('T')[0];
                 } else {
-                    fromInput.value = '';
-                    toInput.value = '';
+                    dateRange.from = null;
+                    dateRange.to = null;
                 }
 
                 applyFiltersAndRender();
             });
-        });
-
-        document.getElementById('group-toggle').addEventListener('click', function() {
-            isGrouped = !isGrouped;
-            if (isGrouped) {
-                this.classList.add('active');
-                this.textContent = 'Ungroup';
-            } else {
-                this.classList.remove('active');
-                this.textContent = 'Group by Service';
-            }
-            savePreferences();
-            renderTable();
         });
 
         // Export functions
@@ -1444,8 +1468,18 @@
         document.getElementById('download-csv-btn').addEventListener('click', downloadCSV);
         document.getElementById('export-google-sheets-btn').addEventListener('click', exportToGoogleSheets);
 
+        // Initialize default date filter to "Last Month"
+        function initializeDefaultFilter() {
+            const today = new Date();
+            const monthAgo = new Date(today);
+            monthAgo.setMonth(monthAgo.getMonth() - 1);
+            dateRange.from = monthAgo.toISOString().split('T')[0];
+            dateRange.to = today.toISOString().split('T')[0];
+        }
+
         // Load preferences and data on page load
         loadPreferences();
+        initializeDefaultFilter();
         loadRecommendations();
     </script>
 </body>
