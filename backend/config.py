@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     # Retention period (in days)
     RETENTION_DAYS: int = 1
     
+    # Maximum number of recommendations for preview mode
+    MAX_RECOMMENDATIONS: int = 40
+    
     @property
     def cors_origins_list(self) -> List[str]:
         """Get CORS origins as a list."""

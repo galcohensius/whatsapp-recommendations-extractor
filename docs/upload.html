@@ -268,6 +268,13 @@
 
             <input type="file" id="fileInput" accept=".zip">
 
+            <div style="text-align: center; margin: 20px 0;">
+                <label style="display: inline-flex; align-items: center; cursor: pointer; font-size: 14px; color: #666;">
+                    <input type="checkbox" id="previewModeCheckbox" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
+                    Last Recommendations (Preview Mode - Faster)
+                </label>
+            </div>
+
             <div class="btn-group" id="buttonGroup" style="text-align: center;">
                 <button class="btn" id="uploadBtn" disabled>Upload File</button>
                 <button class="btn btn-cancel" id="cancelBtn" style="display: none;">Cancel Upload</button>
@@ -305,6 +312,7 @@
         const fileInput = document.getElementById('fileInput');
         const uploadBtn = document.getElementById('uploadBtn');
         const cancelBtn = document.getElementById('cancelBtn');
+        const previewModeCheckbox = document.getElementById('previewModeCheckbox');
         const progressContainer = document.getElementById('progressContainer');
         const progressFill = document.getElementById('progressFill');
         const progressText = document.getElementById('progressText');
@@ -398,6 +406,9 @@
             startTimer();
 
             try {
+                // Get preview mode state from checkbox
+                const previewMode = previewModeCheckbox.checked;
+                
                 // Upload with progress tracking and abort capability
                 const upload = uploadFile(selectedFile, (percent) => {
                     // Update progress bar in real-time
@@ -406,7 +417,7 @@
                     if (percent < 100) {
                         progressText.textContent = `Uploading file... ${percent}%`;
                     }
-                });
+                }, previewMode);
                 
                 // Store abort function
                 uploadAbort = upload.abort;

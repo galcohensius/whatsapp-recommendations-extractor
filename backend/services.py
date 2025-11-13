@@ -51,13 +51,14 @@ def update_progress_message(session_id: str, message: str) -> None:
         print(f"[{session_id}] Warning: Failed to update progress message: {e}")
 
 
-def process_upload_sync(session_id: str, zip_file_path: Path) -> Dict:
+def process_upload_sync(session_id: str, zip_file_path: Path, preview_mode: bool = False) -> Dict:
     """
     Process uploaded zip file synchronously.
     
     Args:
         session_id: Session ID for tracking
         zip_file_path: Path to uploaded zip file
+        preview_mode: If True, limit to last N recommendations (after deduplication)
         
     Returns:
         Dictionary with 'recommendations' list and 'openai_enhanced' boolean
@@ -158,6 +159,48 @@ def process_upload_sync(session_id: str, zip_file_path: Path) -> Dict:
         
         print(f"[{session_id}]   Total unique recommendations: {len(unique_recs)}")
         
+        # Limit to last N recommendations if preview mode is enabled
+        if preview_mode and len(unique_recs) > settings.MAX_RECOMMENDATIONS:
+            print(f"[{session_id}] Step 6.5: Limiting to last {settings.MAX_RECOMMENDATIONS} recommendations (preview mode)...")
+            update_progress_message(session_id, f"Limiting to last {settings.MAX_RECOMMENDATIONS} recommendations...")
+            
+            # Sort by date (most recent first), handling None dates and various date formats
+            from datetime import datetime
+            
+            def get_sort_key(rec):
+                date = rec.get('date')
+                if date is None:
+                    return (0, datetime.min)  # Put None dates at the end
+                
+                # Try to parse as datetime if it's a string
+                if isinstance(date, str):
+                    try:
+                        # Try common date formats
+                        for fmt in ['%Y-%m-%d %H:%M:%S', '%d/%m/%Y, %H:%M', '%Y-%m-%d', '%d/%m/%Y']:
+                            try:
+                                parsed_date = datetime.strptime(date, fmt)
+                                return (1, parsed_date)
+                            except ValueError:
+                                continue
+                        # If no format matches, use string comparison (lexicographic)
+                        return (1, date)
+                    except Exception:
+                        return (1, date)
+                
+                # If it's already a datetime object
+                if isinstance(date, datetime):
+                    return (1, date)
+                
+                # For other types, convert to string
+                return (1, str(date))
+            
+            unique_recs.sort(key=get_sort_key, reverse=True)
+            
+            # Keep only the last MAX_RECOMMENDATIONS
+            original_count = len(unique_recs)
+            unique_recs = unique_recs[:settings.MAX_RECOMMENDATIONS]
+            print(f"[{session_id}]   Limited from {original_count} to {len(unique_recs)} recommendations")
+        
         # Pre-enhancement cleanup
         print(f"[{session_id}] Step 7: Pre-enhancement cleanup...")
         update_progress_message(session_id, f"Cleaning {len(unique_recs)} recommendations...")
@@ -226,13 +269,14 @@ def process_upload_sync(session_id: str, zip_file_path: Path) -> Dict:
             shutil.rmtree(temp_dir, ignore_errors=True)
 
 
-async def process_upload(session_id: str, zip_file_path: Path) -> Dict:
+async def process_upload(session_id: str, zip_file_path: Path, preview_mode: bool = False) -> Dict:
     """
     Process uploaded zip file asynchronously with timeout.
     
     Args:
         session_id: Session ID for tracking
         zip_file_path: Path to uploaded zip file
+        preview_mode: If True, limit to last N recommendations
         
     Returns:
         Dictionary with 'recommendations' list and 'openai_enhanced' boolean
@@ -244,7 +288,7 @@ async def process_upload(session_id: str, zip_file_path: Path) -> Dict:
         # Run sync processing in executor with timeout
         loop = asyncio.get_event_loop()
         result = await asyncio.wait_for(
-            loop.run_in_executor(None, process_upload_sync, session_id, zip_file_path),
+            loop.run_in_executor(None, process_upload_sync, session_id, zip_file_path, preview_mode),
             timeout=settings.PROCESSING_TIMEOUT
         )
         return result

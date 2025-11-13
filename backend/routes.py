@@ -38,6 +38,7 @@ async def health_check():
 @router.post("/upload", response_model=UploadResponse, status_code=202)
 async def upload_file(
     file: UploadFile = File(...),
+    preview_mode: bool = Query(False, description="Enable preview mode (limit to last N recommendations)"),
     background_tasks: BackgroundTasks = BackgroundTasks(),
     db: Session = Depends(get_db)
 ):
@@ -91,7 +92,8 @@ async def upload_file(
         background_tasks.add_task(
             process_upload_task,
             str(session_id),
-            temp_file
+            temp_file,
+            preview_mode
         )
         
         logger.info(f"Upload successful - session_id: {session_id}")
@@ -108,11 +110,16 @@ async def upload_file(
         raise HTTPException(status_code=500, detail=f"Error processing upload: {str(e)}")
 
 
-async def process_upload_task(session_id: str, zip_file_path: Path):
+async def process_upload_task(session_id: str, zip_file_path: Path, preview_mode: bool = False):
     """
     Background task to process uploaded file.
     
     Updates session status and stores results in database.
+    
+    Args:
+        session_id: Session ID
+        zip_file_path: Path to uploaded zip file
+        preview_mode: If True, limit to last N recommendations
     """
     from backend.database import SessionLocal
     
@@ -125,7 +132,7 @@ async def process_upload_task(session_id: str, zip_file_path: Path):
         
         try:
             # Process the upload
-            result_data = await process_upload(session_id, Path(zip_file_path))
+            result_data = await process_upload(session_id, Path(zip_file_path), preview_mode)
             
             # Store results
             result = Result(
