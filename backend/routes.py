@@ -8,7 +8,7 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import (
-    APIRouter, UploadFile, File, HTTPException, Depends, BackgroundTasks, Query
+    APIRouter, UploadFile, File, HTTPException, Depends, BackgroundTasks, Query, Body
 )
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
@@ -33,6 +33,13 @@ router = APIRouter(prefix="/api", tags=["api"])
 async def health_check():
     """Health check endpoint."""
     return HealthResponse()
+
+
+@router.post("/ping")
+async def ping(p: dict = Body(...)):
+    """Simple ping endpoint to test CORS from mobile browsers."""
+    logger.info(f"Ping endpoint called with data: {p}")
+    return {"ok": True, "received": p}
 
 
 @router.post("/upload", response_model=UploadResponse, status_code=202)
