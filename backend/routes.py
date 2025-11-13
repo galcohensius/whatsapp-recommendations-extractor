@@ -46,14 +46,21 @@ async def upload_file(
     
     Returns session_id for tracking processing status.
     """
-    logger.info(f"Upload endpoint called - filename: {file.filename}")
+    logger.info(
+        f"Upload endpoint called - filename: {file.filename}, "
+        f"content_type: {file.content_type}, size: {file.size if hasattr(file, 'size') else 'unknown'}"
+    )
     # Validate file type
     if not file.filename or not file.filename.endswith('.zip'):
         raise HTTPException(status_code=400, detail="Only .zip files are allowed")
     
     # Validate file size
+    logger.info("Reading file content...")
     file_content = await file.read()
-    if len(file_content) > settings.MAX_FILE_SIZE:
+    file_size = len(file_content)
+    logger.info(f"File read successfully - size: {file_size} bytes ({file_size / 1024 / 1024:.2f} MB)")
+    
+    if file_size > settings.MAX_FILE_SIZE:
         raise HTTPException(
             status_code=413,
             detail=f"File size exceeds maximum of {settings.MAX_FILE_SIZE / 1024 / 1024}MB"
@@ -87,9 +94,11 @@ async def upload_file(
             temp_file
         )
         
+        logger.info(f"Upload successful - session_id: {session_id}")
         return UploadResponse(session_id=session_id, status="processing")  # type: ignore
         
     except Exception as e:
+        logger.error(f"Upload failed - error: {str(e)}", exc_info=True)
         # Clean up on error
         if temp_file and temp_file.exists():
             temp_file.unlink()

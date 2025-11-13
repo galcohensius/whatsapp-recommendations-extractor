@@ -1,17 +1,54 @@
 """FastAPI application entry point."""
 
 import asyncio
+import logging
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, RedirectResponse, FileResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from backend.routes import router
 from backend.database import init_db
 from backend.config import settings
 from backend.cleanup import cleanup_expired_data
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+
+class RequestLoggingMiddleware(BaseHTTPMiddleware):
+    """Middleware to log all incoming requests for debugging."""
+    async def dispatch(self, request: Request, call_next):
+        start_time = time.time()
+        # Log request details
+        logger.info(
+            f"Request: {request.method} {request.url.path} "
+            f"from {request.client.host if request.client else 'unknown'}"
+        )
+        
+        try:
+            response = await call_next(request)
+            process_time = time.time() - start_time
+            logger.info(
+                f"Response: {request.method} {request.url.path} "
+                f"status={response.status_code} time={process_time:.3f}s"
+            )
+            return response
+        except Exception as e:
+            process_time = time.time() - start_time
+            logger.error(
+                f"Error: {request.method} {request.url.path} "
+                f"error={str(e)} time={process_time:.3f}s"
+            )
+            raise
 
 
 @asynccontextmanager
@@ -48,6 +85,9 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
+
+# Add request logging middleware (before CORS to catch all requests)
+app.add_middleware(RequestLoggingMiddleware)
 
 # Configure CORS
 app.add_middleware(
