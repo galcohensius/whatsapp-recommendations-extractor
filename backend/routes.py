@@ -21,10 +21,15 @@ from backend.schemas import (
 from backend.services import process_upload
 from backend.config import settings
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api", tags=["api"])
 
 
 @router.get("/health", response_model=HealthResponse)
+@router.head("/health")
 async def health_check():
     """Health check endpoint."""
     return HealthResponse()
@@ -41,6 +46,7 @@ async def upload_file(
     
     Returns session_id for tracking processing status.
     """
+    logger.info(f"Upload endpoint called - filename: {file.filename}")
     # Validate file type
     if not file.filename or not file.filename.endswith('.zip'):
         raise HTTPException(status_code=400, detail="Only .zip files are allowed")

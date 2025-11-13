@@ -2,9 +2,11 @@
 
 import asyncio
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response, RedirectResponse, FileResponse
 
 from backend.routes import router
 from backend.database import init_db
@@ -69,4 +71,22 @@ async def root():
         "docs": "/docs",
         "health": "/api/health"
     }
+
+
+@app.get("/favicon.ico")
+async def favicon():
+    """Serve the favicon PNG file."""
+    favicon_path = Path(__file__).parent / "static" / "favicon.png"
+    if favicon_path.exists():
+        return FileResponse(
+            favicon_path,
+            media_type="image/png",
+            headers={"Cache-Control": "public, max-age=31536000"}  # Cache for 1 year
+        )
+    return Response(status_code=204)  # No content if file doesn't exist
+
+
+@app.get("/api/")
+async def api_root():
+    return RedirectResponse(url="/docs")
 
