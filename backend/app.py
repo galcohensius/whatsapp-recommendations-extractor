@@ -51,6 +51,41 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             raise
 
 
+class NullOriginCORSMiddleware(BaseHTTPMiddleware):
+    """Middleware to handle null origin for mobile browsers before CORS middleware."""
+    async def dispatch(self, request: Request, call_next):
+        origin = request.headers.get("origin")
+        # Check if this is a null origin request (mobile browsers)
+        is_null_origin = origin == "null" or (origin is None and "access-control-request-method" in request.headers)
+        
+        # Handle OPTIONS preflight requests with null origin
+        if request.method == "OPTIONS" and is_null_origin:
+            # Allow null origin for preflight
+            # Use "*" for Access-Control-Allow-Origin with null origin
+            # (browsers accept "*" for null origin when credentials aren't used)
+            response = Response()
+            response.headers["Access-Control-Allow-Origin"] = "*"
+            response.headers["Access-Control-Allow-Methods"] = "POST, GET, OPTIONS, DELETE, PUT, PATCH, HEAD"
+            requested_headers = request.headers.get("access-control-request-headers", "content-type")
+            response.headers["Access-Control-Allow-Headers"] = requested_headers
+            response.headers["Access-Control-Max-Age"] = "600"
+            return response
+        
+        # Process the request
+        response = await call_next(request)
+        
+        # For actual requests with null origin, ensure CORS headers are set correctly
+        if is_null_origin and request.method != "OPTIONS":
+            # Override CORS headers for null origin
+            # Use "*" for null origin (browsers accept this when no credentials)
+            response.headers["Access-Control-Allow-Origin"] = "*"
+            # Remove credentials header if present (browsers reject null origin with credentials)
+            if "access-control-allow-credentials" in response.headers:
+                del response.headers["access-control-allow-credentials"]
+        
+        return response
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown events."""
@@ -89,14 +124,25 @@ app = FastAPI(
 # Add request logging middleware (before CORS to catch all requests)
 app.add_middleware(RequestLoggingMiddleware)
 
-# Configure CORS
+# Configure CORS with support for null origin (mobile browsers)
+# Build allowed origins list including null for mobile browser compatibility
+cors_origins = settings.cors_origins_list.copy()
+# Add "null" as a string to allow mobile browsers that send Origin: null
+if "null" not in cors_origins:
+    cors_origins.append("null")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins_list,
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add null origin CORS handler AFTER CORS middleware so it runs FIRST
+# This handles mobile browsers that send Origin: null
+# (In Starlette, last middleware added runs first, so this intercepts before CORSMiddleware)
+app.add_middleware(NullOriginCORSMiddleware)
 
 # Include routers
 app.include_router(router)
