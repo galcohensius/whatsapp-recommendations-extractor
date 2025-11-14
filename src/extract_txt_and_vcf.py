@@ -744,7 +744,7 @@ def extract_text_recommendations(messages: List[Dict], vcf_data: Dict) -> List[D
             # If no name found, check if there's a sentence mentioning the phone
             if not name:
                 # Look for sentences containing the phone
-                sentences = re.split(r'[.\n!?]', context)
+                sentences = re.split(r'[.\n!?]', context_snippet)
                 for sentence in sentences:
                     if phone in sentence:
                         # Extract potential name from sentence
@@ -759,7 +759,7 @@ def extract_text_recommendations(messages: List[Dict], vcf_data: Dict) -> List[D
             # Intelligently extract service from context
             service = extract_service_from_context(text, chat_message_index=idx, all_messages=messages)
             if not service:
-                service = extract_service_from_context(context, None, None)
+                service = extract_service_from_context(context_snippet, None, None)
             
             # Clean name (remove newlines, normalize whitespace)
             if name:
