@@ -50,7 +50,7 @@ def build_enhancement_prompt_for_null_services(recommendations: List[Dict], mess
         "- Return ALL recommendations in your response (even if unchanged)",
         "- Only update the 'service' field (with OCCUPATION) for recommendations where service is null",
         "- Extract ONLY the service/occupation name - remove all conversational prefixes like 'לכם המלצה על', 'מומלץ', etc.",
-        "- Update the 'context' field with any additional relevant information from the chat (work quality, location, pricing, etc.)",
+        "- Keep the 'context' field EXACTLY as provided - do NOT modify it (it contains actual chat messages)",
         "- For the 'recommender' field: Keep it as the phone number only. Do NOT add names or format as 'Name - Phone'.",
         "- Use the exact same structure as input",
         "- Keep all other fields (name, phone, date, chat_message_index) exactly as provided",
@@ -87,7 +87,7 @@ def build_enhancement_prompt_for_null_services(recommendations: List[Dict], mess
     prompt_parts.append("- Extract ONLY the OCCUPATION/SERVICE NAME from the extended context - NOT full sentences")
     prompt_parts.append("  Examples: 'מוביל', 'חשמלאי', 'מתקין מזגנים', 'אינסטלטור', 'רופא', 'טכנאי מחשבים', 'גנן', 'מתווך'")
     prompt_parts.append("  Remove conversational prefixes like 'לכם המלצה על', 'מומלץ', 'המלצה על' - extract just the service name")
-    prompt_parts.append("- Update 'context' field with additional relevant information (work quality, location, pricing, specializations, etc.)")
+    prompt_parts.append("- Keep 'context' field EXACTLY as provided - do NOT modify it (it contains actual chat messages)")
     prompt_parts.append("- For the 'recommender' field: Keep it as the phone number only. Do NOT add names or format as 'Name - Phone'.")
     prompt_parts.append("  The recommender is the SENDER of the message (their phone number is already in the field).")
     prompt_parts.append("- Keep all other fields exactly as provided")
@@ -133,7 +133,7 @@ def build_enhancement_prompt(recommendations: List[Dict], messages: List[Dict], 
         "- Keep phone numbers exactly as provided",
         "- Preserve dates and other metadata",
         "- For ALL entries: Keep 'recommender' field as phone number only. Do NOT add names.",
-        "- For ALL entries: Update 'context' field with additional relevant information",
+        "- For ALL entries: Keep 'context' field EXACTLY as provided - do NOT modify or update it",
         "- Only update 'service' field when it is null (do NOT change existing service values)",
         "- When extracting service, extract ONLY the service/occupation name - remove conversational prefixes like 'לכם המלצה על', 'מומלץ', etc.",
         "- Only enhance/improve fields, don't remove valid data",
@@ -170,7 +170,7 @@ def build_enhancement_prompt(recommendations: List[Dict], messages: List[Dict], 
     prompt_parts.append("- Extract OCCUPATION in 'service' field ONLY when service is null (do NOT update existing service values)")
     prompt_parts.append("- 'service' should contain ONLY the occupation/service name - NOT full sentences")
     prompt_parts.append("  Examples: 'מוביל', 'חשמלאי', 'מתקין מזגנים', 'רופא' - remove prefixes like 'לכם המלצה על', 'מומלץ', etc.")
-    prompt_parts.append("- For ALL entries (regardless of service value): Update 'context' field with additional relevant information (work quality, location, pricing, specializations, experience, etc.)")
+    prompt_parts.append("- For ALL entries (regardless of service value): Keep 'context' field EXACTLY as provided - do NOT modify it (it contains actual chat messages)")
     prompt_parts.append("- For ALL entries (regardless of service value): Keep 'recommender' field as phone number only. Do NOT add names or format as 'Name - Phone'.")
     prompt_parts.append("  The recommender is the SENDER of the message (their phone number is already in the field).")
     prompt_parts.append("- Improve names if they are 'Unknown' or clearly wrong")
@@ -756,18 +756,8 @@ def enhance_null_services_with_openai(
                     service = get_field(enhanced_rec, 'service')
                     if service:
                         rec['service'] = service
-                    # Update context with additional information
-                    enhanced_context = get_field(enhanced_rec, 'context') or enhanced_rec.get('context', '')
-                    orig_context = rec.get('context', '')
-                    if enhanced_context and enhanced_context != orig_context:
-                        if orig_context and orig_context.strip():
-                            # Combine contexts, avoiding duplicates
-                            if enhanced_context not in orig_context:
-                                rec['context'] = f"{orig_context}. {enhanced_context}".strip()
-                            # else keep original if enhanced is subset
-                        else:
-                            # No original context, use enhanced
-                            rec['context'] = enhanced_context
+                    # DO NOT modify context - keep original chat messages exactly as they were
+                    # Context must remain as actual messages people said, not AI interpretations
                     # Keep recommender as phone number only - do NOT add names
                     # If enhanced version has "Name - Phone" format, extract just the phone part
                     enhanced_recommender = get_field(enhanced_rec, 'recommender') or enhanced_rec.get('recommender', '')
@@ -877,8 +867,8 @@ def merge_enhancements(original: List[Dict], enhanced: List[Dict]) -> List[Dict]
                                 return val
                 return None
             
-            # Always preserve: phone, date, chat_message_index, service (if already exists)
-            # Update: name, service (only if null), context (additional info), recommender (add name if available)
+            # Always preserve: phone, date, chat_message_index, service (if already exists), context (actual chat messages)
+            # Update: name, service (only if null), recommender (keep as phone only)
             
             # Update service (occupation) ONLY if original was null
             service = get_field(enhanced_rec, 'service')
@@ -899,20 +889,9 @@ def merge_enhancements(original: List[Dict], enhanced: List[Dict]) -> List[Dict]
                     # Enhanced name is longer/more complete
                     merged_rec['name'] = enhanced_name
             
-            # Update context with additional information from enhanced version
-            enhanced_context = get_field(enhanced_rec, 'context') or enhanced_rec.get('context', '')
-            orig_context = orig_rec.get('context', '')
-            if enhanced_context and enhanced_context != orig_context:
-                # Merge context: combine if both exist, or use enhanced if it's more detailed
-                if orig_context and orig_context.strip():
-                    # Combine contexts, avoiding duplicates
-                    if enhanced_context not in orig_context:
-                        merged_rec['context'] = f"{orig_context}. {enhanced_context}".strip()
-                    else:
-                        merged_rec['context'] = orig_context  # Keep original if enhanced is subset
-                else:
-                    # No original context, use enhanced
-                    merged_rec['context'] = enhanced_context
+            # DO NOT modify context - keep original chat messages exactly as they were
+            # Context must remain as actual messages people said, not AI interpretations
+            merged_rec['context'] = orig_rec.get('context', '')
             
             # Keep recommender as phone number only - do NOT add names
             # If enhanced version has "Name - Phone" format, extract just the phone part

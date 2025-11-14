@@ -712,10 +712,10 @@ def extract_text_recommendations(messages: List[Dict], vcf_data: Dict) -> List[D
             if phone_pos == -1:
                 continue
             
-            # Get context (100 chars before and after)
+            # Get context (100 chars before and after) - will be replaced with full messages later
             start = max(0, phone_pos - 100)
             end = min(len(text), phone_pos + len(phone) + 100)
-            context = text[start:end]
+            context_snippet = text[start:end]
             
             # Try to extract name from context
             # Look for text before phone that might be a name (Hebrew or English, 2-30 chars)
@@ -779,15 +779,19 @@ def extract_text_recommendations(messages: List[Dict], vcf_data: Dict) -> List[D
                 # Extract and normalize recommender phone number from sender
                 recommender = extract_sender_phone(msg['sender'])
                 
-                recommendations.append({
+                # Create recommendation with temporary context (will be replaced with full messages)
+                rec = {
                     'name': name or 'Unknown',
                     'phone': phone,
                     'service': service,
                     'date': msg['date'],
                     'recommender': recommender,  # Normalized phone number or sender as-is
-                    'context': context.strip(),
+                    'context': context_snippet.strip(),
                     'chat_message_index': idx  # Store chat message index for context lookup
-                })
+                }
+                # Replace context with actual surrounding messages
+                rec['context'] = get_full_context_for_recommendation(rec, messages, context_window=3)
+                recommendations.append(rec)
     
     return recommendations
 
@@ -849,7 +853,8 @@ def extract_vcf_mentions(messages: List[Dict], vcf_data: Dict) -> Tuple[List[Dic
                 # Extract and normalize recommender phone number from sender
                 recommender = extract_sender_phone(msg['sender'])
                 
-                recommendations.append({
+                # Create recommendation with temporary context (will be replaced with full messages)
+                rec = {
                     'name': name,
                     'phone': vcf_info['phone'],
                     'service': vcf_info.get('service'),
@@ -857,7 +862,11 @@ def extract_vcf_mentions(messages: List[Dict], vcf_data: Dict) -> Tuple[List[Dic
                     'recommender': recommender,  # Normalized phone number or sender as-is
                     'context': context if context else None,  # Use None if context is empty after cleaning
                     'chat_message_index': idx  # Store chat message index for context lookup
-                })
+                }
+                # Replace context with actual surrounding messages
+                if rec['chat_message_index'] is not None:
+                    rec['context'] = get_full_context_for_recommendation(rec, messages, context_window=3)
+                recommendations.append(rec)
     
     return recommendations, mentioned_filenames
 
