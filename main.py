@@ -44,10 +44,18 @@ def main():
     if args.enrich:
         try:
             from src.ai_enrich import enrich_file
+            import subprocess, sys
+            from src.prepare_ready_to_upload import prepare_ready_to_upload
         except ImportError as exc:
             raise SystemExit(f"Enrichment failed: {exc}")
         enriched_path = enrich_file(data_dir / "extracted_vcf_and_text.json", data_dir / "ai_enriched.json")
         print(f"Enriched JSON: {enriched_path}")
+        try:
+            prepared_path = data_dir / "ready_to_upload.json"
+            prepare_ready_to_upload(data_dir / "ai_enriched.json", prepared_path)
+            print(f"Ready-to-upload JSON: {prepared_path}")
+        except Exception as exc:
+            raise SystemExit(f"Prepare ready_to_upload failed: {exc}")
     
 
 
