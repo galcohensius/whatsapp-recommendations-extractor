@@ -209,7 +209,7 @@ async def supabase_cleanup_expired() -> None:
         )
 
 
-async def _process_session(session_id: str, file_name: str, preview_mode: bool) -> None:
+async def _process_session(session_id: str, file_name: str, preview_mode: bool, use_openai: bool) -> None:
     data_dir = _session_dir(session_id)
     raw_dir = data_dir / "raw"
     zip_path = raw_dir / "upload.zip"
@@ -226,9 +226,10 @@ async def _process_session(session_id: str, file_name: str, preview_mode: bool) 
         ai_enriched_path = data_dir / "ai_enriched.json"
         ready_path = data_dir / "ready_to_upload.json"
         openai_enhanced = False
+        use_openai_flag = use_openai
 
         # Optional OpenAI enrichment (mirrors main.py --enrich)
-        if USE_OPENAI_ENRICH and extracted_path and extracted_path.exists():
+        if use_openai_flag and extracted_path and extracted_path.exists():
             try:
                 await supabase_update_session(
                     session_id,
@@ -296,6 +297,7 @@ async def upload_zip(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     preview_mode: bool = True,
+    use_openai: Optional[bool] = None,
 ):
     _require_supabase()
 
@@ -324,7 +326,16 @@ async def upload_zip(
     )
 
     # Kick off background processing
-    background_tasks.add_task(_process_session, session_id, file.filename, preview_mode)
+    # Determine whether to run OpenAI enrichment: request flag overrides env
+    use_openai_flag = USE_OPENAI_ENRICH if use_openai is None else use_openai
+
+    background_tasks.add_task(
+        _process_session,
+        session_id,
+        file.filename,
+        preview_mode,
+        use_openai_flag,
+    )
 
     return {"session_id": session_id, "status": "processing"}
 

@@ -22,9 +22,10 @@ let API_BASE_URL = 'https://whatsapp-recommendations-api.onrender.com';
  * @param {File} file - The zip file to upload
  * @param {Function} onProgress - Optional callback for upload progress (receives percentage 0-100)
  * @param {boolean} previewMode - If true, enable preview mode (limit to last N recommendations)
+ * @param {boolean} useOpenAI - If true, request OpenAI enrichment
  * @returns {{promise: Promise<{session_id: string, status: string}>, abort: Function}} Object with promise and abort function
  */
-function uploadFile(file, onProgress = null, previewMode = true) {
+function uploadFile(file, onProgress = null, previewMode = true, useOpenAI = true) {
     // Validate file size (5MB)
     const maxSize = 5 * 1024 * 1024; // 5MB in bytes
     if (file.size > maxSize) {
@@ -44,8 +45,13 @@ function uploadFile(file, onProgress = null, previewMode = true) {
     
     // Validate API URL before attempting upload
     let uploadUrl = `${API_BASE_URL}/api/upload`;
+    const params = [];
     if (previewMode) {
-        uploadUrl += '?preview_mode=true';
+        params.push('preview_mode=true');
+    }
+    params.push(`use_openai=${useOpenAI ? 'true' : 'false'}`);
+    if (params.length > 0) {
+        uploadUrl += `?${params.join('&')}`;
     }
     if (uploadUrl.includes('localhost') || uploadUrl.includes('127.0.0.1')) {
         return {
