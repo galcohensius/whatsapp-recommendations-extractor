@@ -28,6 +28,7 @@ from starlette.responses import JSONResponse
 
 from src.extraction import run_extraction
 from src.prepare_ready_to_upload import prepare_ready_to_upload
+from src.ai_enrich import enrich_file
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -36,6 +37,7 @@ from src.prepare_ready_to_upload import prepare_ready_to_upload
 SUPABASE_URL = os.getenv("SUPABASE_URL", "").rstrip("/")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 SUPABASE_TABLE = "sessions"
+USE_OPENAI_ENRICH = os.getenv("USE_OPENAI", "false").lower() == "true"
 
 DATA_ROOT = Path("data")
 SESSIONS_ROOT = DATA_ROOT / "sessions"
@@ -218,11 +220,31 @@ async def _process_session(session_id: str, file_name: str, preview_mode: bool) 
 
         _move_files_to_data_dir(raw_dir, data_dir)
 
-        combined, _ = run_extraction(data_dir=data_dir, save=True)
+        combined, outputs = run_extraction(data_dir=data_dir, save=True)
 
-        # Attempt to produce ready_to_upload.json if ai_enriched.json exists
+        extracted_path = outputs.get("combined") or (data_dir / "extracted_vcf_and_text.json")
         ai_enriched_path = data_dir / "ai_enriched.json"
         ready_path = data_dir / "ready_to_upload.json"
+        openai_enhanced = False
+
+        # Optional OpenAI enrichment (mirrors main.py --enrich)
+        if USE_OPENAI_ENRICH and extracted_path and extracted_path.exists():
+            try:
+                await supabase_update_session(
+                    session_id,
+                    {"progress_message": "Enriching with OpenAI..."},
+                )
+                enrich_file(extracted_path, ai_enriched_path)
+                openai_enhanced = True
+            except Exception as exc:
+                await supabase_update_session(
+                    session_id,
+                    {
+                        "progress_message": f"Enrichment skipped: {exc}",
+                    },
+                )
+
+        # Attempt to produce ready_to_upload.json
         if ai_enriched_path.exists():
             try:
                 prepare_ready_to_upload(ai_enriched_path, ready_path)
@@ -244,7 +266,7 @@ async def _process_session(session_id: str, file_name: str, preview_mode: bool) 
                 "status": "completed",
                 "result_json": normalized,
                 "result_url": None,
-                "openai_enhanced": False,
+                "openai_enhanced": openai_enhanced,
                 "progress_message": "Completed",
             },
         )
