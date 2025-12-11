@@ -3,6 +3,7 @@
 
 # Core dependencies (used by main.py CLI)
 openai>=1.0.0
+httpx>=0.27.0
 
 # Backend API dependencies
 # FastAPI and server
