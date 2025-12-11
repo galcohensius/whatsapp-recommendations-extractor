@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Iterable, List, Optional, Dict, Any
 import re
 
-FIELDS = ["Service", "Name", "Phone", "Date", "Recommender", "vcfContext", "Context", "TextChat"]
+FIELDS = ["Service", "Name", "Phone", "Date", "Recommender", "vcfContext", "FinalContext", "TextContext"]
 
 
 @dataclass
@@ -19,8 +19,8 @@ class Recommendation:
     Date: str = ""
     Recommender: str = ""
     vcfContext: str = ""
-    Context: str = ""  # reserved for future use
-    TextChat: str = ""
+    FinalContext: str = ""  # combine text+vcf context and AI reasoning
+    TextContext: str = ""
 
     def to_dict(self) -> dict:
         return {field: getattr(self, field, "") for field in FIELDS}
@@ -44,6 +44,44 @@ def _normalize_phone(phone: str) -> str:
     if phone.startswith("+972"):
         phone = "0" + phone[len("+972"):]
     return phone.replace(" ", "")
+
+
+def _clean_message_text(text: str) -> str:
+    """Remove timestamps/phones (already excluded), strip vcf suffixes, and drop bidi/zero-width noise."""
+    if not text:
+        return ""
+    # Remove common Unicode control/bidi marks
+    CONTROL_CHARS = dict.fromkeys(
+        map(ord, "\u200e\u200f\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069\u200b\u200c\u200d"),
+        None,
+    )
+    t = text.translate(CONTROL_CHARS).strip()
+    # Replace ".vcf (file attached)" or ".vcf" with just the stem
+    if t.lower().endswith(".vcf (file attached)"):
+        t = t[: -len(".vcf (file attached)")].strip()
+    elif t.lower().endswith(".vcf"):
+        t = t[: -len(".vcf")].strip()
+
+    # Strip leading mention tokens like @~Name or @Name (common in WhatsApp exports)
+    t = re.sub(r"^(?:@~?\S+\s*)+", "", t).strip()
+
+    # Decode percent-encoded URLs to improve readability (keep full URL)
+    def _strip_url(match: re.Match) -> str:
+        url = match.group(0)
+        try:
+            from urllib.parse import urlparse, unquote
+            parsed = urlparse(url)
+            path = unquote(parsed.path)
+            query = unquote(parsed.query)
+            rebuilt = f"{parsed.scheme}://{parsed.netloc}{path}"
+            if query:
+                rebuilt += f"?{query}"
+            return rebuilt
+        except Exception:
+            return url
+
+    t = re.sub(r"https?://[^\s]+", _strip_url, t)
+    return t
 
 
 def extract_from_vcf(data_dir: Path) -> List[dict]:
@@ -98,8 +136,8 @@ def extract_from_vcf(data_dir: Path) -> List[dict]:
                 Date=date,
                 Recommender="",
                 vcfContext=context,
-                Context="",
-                TextChat="",
+                FinalContext="",
+                TextContext="",
             ).to_dict()
         )
     return records
@@ -185,10 +223,17 @@ def enrich_with_chat_context(
                     break
         if idx is not None:
             window = messages[max(0, idx - 3): idx + 4]
-            rendered = [f"{m['datetime']} - {_normalize_phone(m['sender'])}: {m['text']}" for m in window]
+            rendered = []
+            for m in window:
+                body = _clean_message_text(m["text"])
+                # Drop body if it matches the vCard name (duplicate of Name field)
+                if body and body.strip() != rec.get("Name", "").strip():
+                    rendered.append(body)
             rec["Recommender"] = _normalize_phone(messages[idx]["sender"])
             rec["Date"] = messages[idx]["datetime"]
-            rec["TextChat"] = " || ".join(rendered)
+            joined = " || ".join(rendered)
+            MAX_CHAT = 800
+            rec["TextContext"] = joined[:MAX_CHAT] if len(joined) > MAX_CHAT else joined
         enriched.append(rec)
     return enriched
 
@@ -203,7 +248,7 @@ def _write_json(records: Iterable[dict], output_path: Path) -> Path:
 def run_extraction(
     data_dir: Path,
     save: bool = True,
-    output_name: str = "extracted.json",
+    output_name: str = "extracted_vcf_and_text.json",
 ):
     """Run both extractors and optionally persist JSON.
 

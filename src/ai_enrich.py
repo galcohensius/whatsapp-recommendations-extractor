@@ -15,16 +15,16 @@ MODEL = "gpt-4o-mini"
 MAX_RETRIES = 3
 RETRY_DELAY = 2.0
 # Smaller batches to reduce latency/timeout risk
-BATCH_SIZE = 20
-REQUEST_TIMEOUT = 120
+BATCH_SIZE = 5
+REQUEST_TIMEOUT = 180
 
 def _load_api_key() -> str:
-    key = os.environ.get("OPENAI_API_KEY")
-    if key:
-        return key.strip()
     key_path = Path("api_key.txt")
     if key_path.exists():
         return key_path.read_text(encoding="utf-8").strip()
+    key = os.environ.get("OPENAI_API_KEY")
+    if key:
+        return key.strip()
     raise RuntimeError("OpenAI API key not found. Set OPENAI_API_KEY or provide api_key.txt")
 
 
@@ -38,15 +38,60 @@ def _load_project_id() -> str:
     return ""
 
 
-SYSTEM_PROMPT = """You are a precise extractor. Given records with fields Service, Name, Phone, Date, Recommender, vcfContext, Context, TextChat, fill only:
-- Service: a single Hebrew occupation/role word (e.g., אינסטלטור, נהג, חשמלאי, נג ר). No names, no praise, no English, no multi-word marketing.
-- Context: concise, relevant details from vcfContext/TextChat (e.g., location, specialty, materials, prices, availability). No generic praise or marketing (avoid 'מומלץ', 'great', etc.).
+SYSTEM_PROMPT = """You are a precise extractor. Given records with fields Service, Name, Phone, Date, Recommender, vcfContext, FinalContext, TextContext, fill only:
+- Service: a single Hebrew occupation/role word (e.g., אינסטלטור, חשמלאי, טכנאי גז, טכנאי מזגנים, נהג, נגר). Do NOT output generic 'טכנאי' alone. 
+- FinalContext: concise, relevant details from vcfContext/TextContext (e.g., specialty, location, materials, availability). No generic praise/marketing (avoid 'מומלץ', 'great', etc.).
 Return the updated records as JSON array, preserving all original fields and values that are not being filled.
-If you cannot determine Service, leave it empty. If no relevant context, leave Context empty."""
+If you cannot determine Service, leave it empty. If no relevant context, leave FinalContext empty."""
 
 
 def _chunk(records: List[Dict[str, Any]], size: int) -> List[List[Dict[str, Any]]]:
     return [records[i : i + size] for i in range(0, len(records), size)]
+
+
+KEYWORD_SERVICE_MAP = [
+    ("גז", "טכנאי גז"),
+    ("מזגן", "טכנאי מזגנים"),
+    ("מזגנים", "טכנאי מזגנים"),
+    ("קירור", "טכנאי מקררים"),
+    ("מקרר", "טכנאי מקררים"),
+    ("מקררים", "טכנאי מקררים"),
+    ("אינסטל", "אינסטלטור"),
+    ("דליפה", "אינסטלטור"),
+    ("צנרת", "אינסטלטור"),
+    ("ביוב", "אינסטלטור"),
+    ("חשמל", "חשמלאי"),
+    ("תמי 4", "טכנאי מטהרי מים"),
+    ("מטהר מים", "טכנאי מטהרי מים"),
+    ("מים", "אינסטלטור"),
+    ("סיבים", "טכנאי אינטרנט"),
+    ("אינטרנט", "טכנאי אינטרנט"),
+    ("ראוטר", "טכנאי אינטרנט"),
+    ("רשת", "טכנאי אינטרנט"),
+    ("מחשב", "טכנאי מחשבים"),
+    ("מחשבים", "טכנאי מחשבים"),
+    ("קבלן", "קבלן"),
+    ("בניה", "קבלן"),
+    ("שיפוץ", "קבלן שיפוצים"),
+    ("שיפוצים", "קבלן שיפוצים"),
+    ("שיפוצניק", "קבלן שיפוצים"),
+]
+
+
+def _refine_service(rec: Dict[str, Any]) -> Dict[str, Any]:
+    """Heuristic to avoid generic 'טכנאי' by inferring trade from context."""
+    svc = (rec.get("Service") or "").strip()
+    if svc and svc != "טכנאי":
+        return rec
+    haystack = " ".join(
+        str(rec.get(k, "") or "") for k in ("TextContext", "FinalContext", "vcfContext")
+    ).lower()
+    for needle, replacement in KEYWORD_SERVICE_MAP:
+        if needle in haystack:
+            rec["Service"] = replacement
+            return rec
+    # Leave as-is (may be empty or generic)
+    return rec
 
 
 def _enrich_batch(api_key: str, batch: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -111,22 +156,26 @@ def enrich_file(input_path: Path, output_path: Path) -> Path:
     enriched: List[Dict[str, Any]] = []
     batches = _chunk(data, BATCH_SIZE)
     total = len(batches)
+    start_time = time.time()
     for idx, batch in enumerate(batches, start=1):
+        batch_start = time.time()
         print(f"[enrich] batch {idx}/{total} (size {len(batch)})...")
         for attempt in range(1, MAX_RETRIES + 1):
             try:
-                enriched_batch = _enrich_batch(api_key, batch)
+                enriched_batch = [_refine_service(rec) for rec in _enrich_batch(api_key, batch)]
                 enriched.extend(enriched_batch)
                 break
             except Exception:
                 if attempt == MAX_RETRIES:
                     raise
                 time.sleep(RETRY_DELAY * attempt)
-        print(f"[enrich] done batch {idx}/{total}")
+        elapsed_batch = time.time() - batch_start
+        print(f"[enrich] done batch {idx}/{total} in {elapsed_batch:.1f}s")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(enriched, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"[enrich] wrote {len(enriched)} records to {output_path}")
+    elapsed_total = time.time() - start_time
+    print(f"[enrich] wrote {len(enriched)} records to {output_path} in {elapsed_total:.1f}s")
     return output_path
 
 

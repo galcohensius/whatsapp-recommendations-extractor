@@ -46,7 +46,7 @@ def main():
             from src.ai_enrich import enrich_file
         except ImportError as exc:
             raise SystemExit(f"Enrichment failed: {exc}")
-        enriched_path = enrich_file(data_dir / "extracted.json", data_dir / "enriched.json")
+        enriched_path = enrich_file(data_dir / "extracted_vcf_and_text.json", data_dir / "ai_enriched.json")
         print(f"Enriched JSON: {enriched_path}")
     
 
