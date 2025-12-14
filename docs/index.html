@@ -3,13 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WhatsApp Recommendations</title>
-    <!-- Favicons (relative paths for GitHub Pages subdir deployment) -->
-    <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="./favicon-16x16.png">
-    <link rel="manifest" href="./site.webmanifest">
-    <link rel="icon" type="image/x-icon" href="./favicon.ico">
+    <title>File Upload - WhatsApp Recommendations Extractor</title>
     <style>
         * {
             margin: 0;
@@ -26,7 +20,7 @@
         }
 
         .container {
-            max-width: 1600px;
+            max-width: 800px;
             margin: 0 auto;
             background: white;
             border-radius: 15px;
@@ -46,299 +40,207 @@
             margin-bottom: 10px;
         }
 
-        .header .stats {
-            font-size: 1.1em;
-            opacity: 0.9;
+        .content {
+            padding: 40px;
         }
 
-        .controls {
-            padding: 25px;
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
             background: #f8f9fa;
-            border-bottom: 2px solid #e9ecef;
-        }
-
-        .controls-row {
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-
-        .controls-row:last-child {
-            margin-bottom: 0;
-        }
-
-        .search-box {
-            flex: 1;
-            min-width: 250px;
-            padding: 12px 20px;
-            font-size: 16px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            transition: border-color 0.3s;
-        }
-
-        .search-box:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .date-filter {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-
-        .date-input {
-            padding: 8px 12px;
-            border: 2px solid #ddd;
-            border-radius: 6px;
-            font-size: 14px;
-        }
-
-        .date-input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .quick-filters {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-
-        .filter-btn {
-            padding: 10px 20px;
-            background: white;
-            border: 2px solid #667eea;
-            border-radius: 8px;
-            cursor: pointer;
             transition: all 0.3s;
-            font-size: 14px;
-            white-space: nowrap;
-        }
-
-        .filter-btn:hover {
-            background: #667eea;
-            color: white;
-        }
-
-        .filter-btn.active {
-            background: #667eea;
-            color: white;
-        }
-
-        .group-toggle {
-            padding: 10px 20px;
-            background: #28a745;
-            color: white;
-            border: none;
-            border-radius: 8px;
             cursor: pointer;
-            font-size: 14px;
-            transition: background 0.3s;
         }
 
-        .group-toggle:hover {
-            background: #218838;
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: #f0f0f0;
         }
 
-        .group-toggle.active {
-            background: #dc3545;
-        }
-
-        .group-toggle.active:hover {
-            background: #c82333;
-        }
-
-        .table-container {
-            overflow-x: auto;
-            max-height: 70vh;
-            position: relative;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 14px;
-        }
-
-        thead {
-            background: #667eea;
-            color: white;
-            position: sticky;
-            top: 0;
-            z-index: 10;
-        }
-
-        th {
-            padding: 15px 12px;
-            text-align: left;
-            font-weight: 600;
-            white-space: nowrap;
-            cursor: pointer;
-            user-select: none;
-            position: relative;
-        }
-
-        th:hover {
-            background: #5568d3;
-        }
-
-        th[data-column="service"] {
-            width: 40%;
-            min-width: 200px;
-        }
-        th[data-column="recommender"] {
-            width: 18%;
-            min-width: 150px;
-        }
-
-        .recommender-col {
-            white-space: nowrap;
-        }
-        .service-col {
-            width: 40%;
-            word-wrap: break-word;
-            white-space: normal;
-        }
-
-        th.sortable::after {
-            content: ' ↕';
-            font-size: 12px;
-            opacity: 0.5;
-        }
-
-        th.sort-asc::after {
-            content: ' ↑';
-            opacity: 1;
-        }
-
-        th.sort-desc::after {
-            content: ' ↓';
-            opacity: 1;
-        }
-
-        td {
-            padding: 12px;
-            border-bottom: 1px solid #e9ecef;
-            vertical-align: top;
-            transition: background-color 0.2s ease;
-        }
-
-        tr:hover {
-            background: #f8f9fa;
-        }
-
-        /* Column hover effect - highlight entire column when hovering over any cell */
-        table tbody tr td.column-hover {
-            background-color: #e7f3ff;
-        }
-        
-        table thead th.column-hover {
-            background-color: #4a5fc7 !important;
-        }
-
-        .phone-link {
-            color: #667eea;
-            text-decoration: none;
-            font-weight: 600;
-            white-space: nowrap;
-        }
-
-        .phone-link:hover {
-            text-decoration: underline;
-        }
-
-        .service-badge {
-            display: inline-block;
-            padding: 4px 10px;
+        .upload-area.dragover {
+            border-color: #28a745;
             background: #e7f3ff;
-            color: #0066cc;
-            border-radius: 12px;
-            font-size: 12px;
-            margin: 2px;
         }
 
-        .context {
-            max-width: 300px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            font-size: 12px;
-            color: #666;
-        }
-
-        .date {
-            white-space: nowrap;
-            font-size: 12px;
-            color: #888;
-        }
-
-        .no-results {
-            padding: 50px;
-            text-align: center;
-            color: #999;
-            font-size: 18px;
-        }
-
-        .loading {
-            padding: 50px;
-            text-align: center;
-            font-size: 18px;
-            color: #667eea;
-        }
-
-        .service-group {
+        .upload-icon {
+            font-size: 4em;
             margin-bottom: 20px;
         }
 
-        .service-group-header {
-            background: #f0f0f0;
-            padding: 12px 15px;
-            font-weight: bold;
+        .upload-text {
+            font-size: 1.2em;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .upload-hint {
+            font-size: 0.9em;
+            color: #999;
+        }
+
+        .instructions {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-radius: 5px;
+        }
+
+        .instructions h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+
+        .instructions ol {
+            margin-left: 20px;
+            color: #555;
+            line-height: 1.8;
+        }
+
+        .instructions li {
+            margin-bottom: 8px;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
             cursor: pointer;
-            border-radius: 6px;
-            margin-bottom: 5px;
+            transition: background 0.3s;
+            margin-top: 20px;
+        }
+
+        .btn:hover {
+            background: #5568d3;
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .btn-cancel {
+            background: #dc3545;
+            margin-left: 10px;
+        }
+
+        .btn-cancel:hover {
+            background: #c82333;
+        }
+
+        .btn-group {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .progress-container {
+            margin-top: 30px;
+            display: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #e9ecef;
+            border-radius: 15px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .progress-info {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 15px;
         }
 
-        .service-group-header:hover {
-            background: #e0e0e0;
+        .progress-timer {
+            color: #666;
+            font-size: 0.9em;
+            font-weight: 500;
         }
 
-        .service-group-header::before {
-            content: '▶ ';
-            transition: transform 0.2s;
+        .status-message {
+            text-align: center;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
         }
 
-        .service-group-header.collapsed::before {
-            transform: rotate(-90deg);
+        .status-message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
         }
 
-        .service-group-content {
-            overflow: hidden;
-            transition: max-height 0.3s;
+        .status-message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
         }
 
-        .service-group-content.collapsed {
-            max-height: 0;
-            overflow: hidden;
+        .status-message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
         }
 
-        .group-count {
-            background: #667eea;
+        .session-info {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .session-id {
+            font-family: monospace;
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            word-break: break-all;
+            margin: 10px 0;
+        }
+
+        .link-btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #28a745;
             color: white;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 12px;
-            margin-right: 10px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 10px;
         }
 
+        .link-btn:hover {
+            background: #218838;
+        }
+
+        /* Mobile-friendly styles */
         @media (max-width: 768px) {
             body {
                 padding: 10px;
@@ -356,87 +258,72 @@
                 font-size: 1.8em;
             }
 
-            .header .stats {
+            .content {
+                padding: 20px 15px;
+            }
+
+            .upload-area {
+                padding: 30px 20px;
+            }
+
+            .upload-icon {
+                font-size: 3em;
+            }
+
+            .upload-text {
                 font-size: 1em;
             }
 
-            .controls {
+            .upload-hint {
+                font-size: 0.85em;
+            }
+
+            .instructions {
                 padding: 15px;
+                margin-bottom: 20px;
             }
 
-            .controls-row {
-                flex-direction: column;
-                gap: 10px;
+            .instructions h3 {
+                font-size: 1em;
+                margin-bottom: 10px;
             }
 
-            .search-box {
-                width: 100%;
-                min-width: unset;
-                padding: 14px 15px;
-                font-size: 16px; /* Prevents zoom on iOS */
-                min-height: 44px; /* Touch-friendly */
+            .instructions ol {
+                margin-left: 15px;
+                line-height: 1.6;
             }
 
-            .date-filter {
-                width: 100%;
-                flex-direction: column;
-                align-items: stretch;
-            }
-
-            .date-input {
-                width: 100%;
-                padding: 12px;
-                font-size: 16px; /* Prevents zoom on iOS */
-                min-height: 44px; /* Touch-friendly */
-            }
-
-            .quick-filters {
-                width: 100%;
-                justify-content: space-between;
-            }
-
-            .filter-btn {
-                flex: 1;
-                min-width: 0;
-                padding: 12px 10px;
-                font-size: 13px;
-                min-height: 44px; /* Touch-friendly */
-            }
-
-            .group-toggle {
-                width: 100%;
+            .btn {
                 padding: 14px 20px;
                 font-size: 16px;
-                min-height: 44px; /* Touch-friendly */
+                min-height: 44px; /* Touch-friendly minimum size */
+                width: 100%;
+                margin-top: 15px;
             }
 
-            .table-container {
-                max-height: 60vh;
+            .btn-group {
+                flex-direction: column;
             }
 
-            table {
-                font-size: 12px;
+            .btn-cancel {
+                margin-left: 0;
+                margin-top: 10px;
             }
 
-            th, td {
-                padding: 10px 8px;
+            .progress-bar {
+                height: 25px;
             }
 
-            th {
-                font-size: 11px;
+            .session-info {
+                padding: 15px;
+                margin-top: 20px;
             }
 
-            .context {
-                max-width: 150px;
-            }
-
-            .service-badge {
-                font-size: 11px;
-                padding: 3px 8px;
-            }
-
-            .phone-link {
-                font-size: 13px;
+            .link-btn {
+                display: block;
+                text-align: center;
+                padding: 12px 20px;
+                min-height: 44px;
             }
         }
 
@@ -445,39 +332,33 @@
                 font-size: 1.5em;
             }
 
-            .header .stats {
+            .header p {
                 font-size: 0.9em;
             }
 
-            .controls {
+            .content {
+                padding: 15px 10px;
+            }
+
+            .upload-area {
+                padding: 25px 15px;
+            }
+
+            .upload-icon {
+                font-size: 2.5em;
+            }
+
+            .instructions {
                 padding: 12px;
             }
 
-            .search-box {
-                padding: 12px;
+            .instructions ol {
+                font-size: 0.9em;
             }
 
-            .filter-btn {
-                font-size: 12px;
-                padding: 10px 8px;
-            }
-
-            table {
-                font-size: 11px;
-            }
-
-            th, td {
-                padding: 8px 5px;
-            }
-
-            .context {
-                max-width: 120px;
-                font-size: 11px;
-            }
-
-            .service-group-header {
-                padding: 10px 12px;
-                font-size: 14px;
+            .btn {
+                padding: 12px 15px;
+                font-size: 15px;
             }
         }
     </style>
@@ -485,427 +366,305 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>📋 WhatsApp Recommendations</h1>
-            <div class="stats">
-                <span id="total-count">Loading...</span> recommendations 
-                <span id="filtered-count" style="opacity: 0.7;"></span>
-            </div>
+            <h1>📤 File Upload</h1>
+            <p>Upload a ZIP file with WhatsApp chat and VCF contact files</p>
         </div>
 
-        <div class="controls">
-            <div class="controls-row">
-                <input 
-                    type="text" 
-                    id="search-input" 
-                    class="search-box" 
-                    placeholder="Search by name, service, phone, recommender...">
+        <div class="content">
+            <div class="instructions">
+                <h3>📱 How to Export Your WhatsApp Chat:</h3>
+                <ol>
+                    <li>Open WhatsApp on your phone</li>
+                    <li>Go to <strong>Settings</strong> → <strong>Chats</strong> → <strong>Chat history</strong> → <strong>Export chat</strong></li>
+                    <li>Choose the chat you want to export</li>
+                    <li>Save the file as <strong>"Without media"</strong></li>
+                    <li>Drag the ZIP file to the area below</li>
+                </ol>
+                <p style="margin-top:12px; color:#555;">
+                    Sessions and results are stored in Supabase for a limited time (default 7 days). Keep the session link if you want to revisit results before expiry.
+                </p>
             </div>
 
-            <div class="controls-row">
-                <div class="date-filter">
-                    <div class="quick-filters">
-                        <button class="filter-btn active" data-quick="month">Last Month</button>
-                        <button class="filter-btn" data-quick="6months">6 Months</button>
-                        <button class="filter-btn" data-quick="year">Last Year</button>
-                        <button class="filter-btn" data-quick="all">All</button>
-                    </div>
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📁</div>
+                <div class="upload-text">Click here or drag ZIP file</div>
+                <div class="upload-hint">Maximum size: 5MB</div>
+            </div>
+
+            <input type="file" id="fileInput" accept=".zip">
+
+            <div style="text-align: center; margin: 20px 0;">
+                <label style="display: inline-flex; align-items: center; cursor: pointer; font-size: 14px; color: #666;">
+                    <input type="checkbox" id="previewModeCheckbox" checked style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
+                    Last Recommendations (Preview Mode - Faster)
+                </label>
+                <div style="margin-top: 10px; display: flex; justify-content: center; gap: 12px; flex-wrap: wrap;">
+                    <label style="display: inline-flex; align-items: center; cursor: pointer; font-size: 14px; color: #666;">
+                        <input type="checkbox" id="useOpenAICheckbox" checked style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
+                        Use OpenAI enrichment
+                    </label>
                 </div>
             </div>
-        </div>
 
-        <div class="table-container">
-            <div id="loading" class="loading">Loading data...</div>
-            <div id="no-results" class="no-results" style="display: none;">
-                No results found
+            <div class="btn-group" id="buttonGroup" style="text-align: center;">
+                <button class="btn" id="uploadBtn" disabled>Upload File</button>
+                <button class="btn btn-cancel" id="cancelBtn" style="display: none;">Cancel Upload</button>
             </div>
-            <div id="table-wrapper" style="display: none;">
-                <table id="recommendations-table">
-                    <thead>
-                        <tr>
-                            <th class="sortable" data-column="service">Service</th>
-                            <th class="sortable" data-column="name">Name</th>
-                            <th class="sortable" data-column="phone">Phone</th>
-                            <th class="sortable" data-column="date">Date</th>
-                            <th class="sortable" data-column="recommender">Recommender</th>
-                            <th data-column="context">Context</th>
-                        </tr>
-                    </thead>
-                    <tbody id="table-body">
-                    </tbody>
-                </table>
+
+            <div class="progress-container" id="progressContainer">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill">0%</div>
+                </div>
+                <div class="progress-info">
+                    <div id="progressText" style="text-align: center; color: #666;"></div>
+                    <div class="progress-timer" id="progressTimer">00:00</div>
+                </div>
+            </div>
+
+            <div class="status-message" id="statusMessage"></div>
+
+            <div class="session-info" id="sessionInfo">
+                <h3>Upload Complete!</h3>
+                <p>Session ID:</p>
+                <div class="session-id" id="sessionId"></div>
+                <p>Processing is running in the background. Click the button below to view results.</p>
+                <a href="#" class="link-btn" id="resultsLink">View Results</a>
             </div>
         </div>
     </div>
 
+    <script src="api.js"></script>
     <script>
-        let recommendations = [];
-        let filteredRecommendations = [];
-        let sortConfig = { column: 'service', direction: 'asc' };
-        let debounceTimer = null;
-        let dateRange = { from: null, to: null }; // Store date range for filtering
+        // Update API base URL if needed (uncomment and set your URL)
+        // For local development: API_BASE_URL = 'http://localhost:8000';
+        // For production: API_BASE_URL = 'https://your-backend-url.onrender.com';
 
-        // Load preferences from localStorage (if needed in future)
-        function loadPreferences() {
-            // Reserved for future preferences
-        }
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const cancelBtn = document.getElementById('cancelBtn');
+        const previewModeCheckbox = document.getElementById('previewModeCheckbox');
+        const useOpenAICheckbox = document.getElementById('useOpenAICheckbox');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const statusMessage = document.getElementById('statusMessage');
+        const sessionInfo = document.getElementById('sessionInfo');
+        const sessionIdEl = document.getElementById('sessionId');
+        const resultsLink = document.getElementById('resultsLink');
 
-        // Save preferences to localStorage (if needed in future)
-        function savePreferences() {
-            // Reserved for future preferences
-        }
+        let selectedFile = null;
+        let uploadAbort = null;
+        let timerInterval = null;
+        let timerStartTime = null;
 
-        // Format phone number for display and tel: link
-        function formatPhone(phone) {
-            if (!phone) return '';
-            let cleaned = phone.replace(/[^\d+\-]/g, '');
-            if (cleaned.startsWith('+972')) {
-                cleaned = cleaned.replace('+972', '0');
+        // Click to select file
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        // File input change
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                selectedFile = e.target.files[0];
+                validateAndEnableUpload();
             }
-            let digits = cleaned.replace(/[^\d]/g, '');
-            if (digits.length === 10) {
-                return digits.substring(0, 3) + '-' + digits.substring(3, 6) + '-' + digits.substring(6);
-            } else if (digits.length === 9) {
-                return digits.substring(0, 2) + '-' + digits.substring(2, 5) + '-' + digits.substring(5);
+        });
+
+        // Drag and drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            if (e.dataTransfer.files.length > 0) {
+                selectedFile = e.dataTransfer.files[0];
+                fileInput.files = e.dataTransfer.files;
+                validateAndEnableUpload();
             }
-            return cleaned;
-        }
+        });
 
-        function getTelLink(phone) {
-            if (!phone) return '#';
-            let digits = phone.replace(/[^\d+]/g, '');
-            if (digits.startsWith('+')) {
-                return 'tel:' + digits;
-            } else if (digits.startsWith('972')) {
-                return 'tel:+' + digits;
-            } else if (digits.startsWith('0')) {
-                return 'tel:+972' + digits.substring(1);
-            }
-            return 'tel:' + digits;
-        }
-
-        function formatDate(dateStr) {
-            if (!dateStr) return '';
-            try {
-                const date = new Date(dateStr);
-                return date.toLocaleDateString('he-IL', { 
-                    year: 'numeric', 
-                    month: '2-digit', 
-                    day: '2-digit' 
-                });
-            } catch {
-                return dateStr.split(' ')[0] || dateStr;
-            }
-        }
-
-        function getDateOnly(dateStr) {
-            if (!dateStr) return null;
-            try {
-                return new Date(dateStr.split(' ')[0]);
-            } catch {
-                return null;
-            }
-        }
-
-        function truncateText(text, maxLength = 50) {
-            if (!text) return '';
-            if (text.length <= maxLength) return text;
-            return text.substring(0, maxLength - 3) + '...';
-        }
-
-        function escapeHtml(text) {
-            if (!text) return '';
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        function loadRecommendations() {
-            fetch('recommendations.json')
-                .then(response => response.json())
-                .then(data => {
-                    recommendations = data;
-                    filteredRecommendations = [...recommendations];
-                    updateStats();
-                    applyFiltersAndRender();
-                    // Update sort indicator after rendering
-                    updateSortIndicator();
-                    document.getElementById('loading').style.display = 'none';
-                })
-                .catch(error => {
-                    console.error('Error loading recommendations:', error);
-                    document.getElementById('loading').textContent = 'Error loading data';
-                });
-        }
-
-        function updateStats() {
-            document.getElementById('total-count').textContent = recommendations.length;
-            const filteredCount = filteredRecommendations.length;
-            if (filteredCount < recommendations.length) {
-                document.getElementById('filtered-count').textContent = 
-                    `(Showing: ${filteredCount})`;
-            } else {
-                document.getElementById('filtered-count').textContent = '';
-            }
-        }
-
-        function filterRecommendations() {
-            const searchTerm = document.getElementById('search-input').value.toLowerCase();
-
-            filteredRecommendations = recommendations.filter(rec => {
-                // Text search
-                if (searchTerm) {
-                    const searchFields = [
-                        rec.name || '',
-                        rec.phone || '',
-                        rec.service || '',
-                        rec.recommender || '',
-                        rec.context || ''
-                    ].join(' ').toLowerCase();
-
-                    if (!searchFields.includes(searchTerm)) {
-                        return false;
-                    }
-                }
-
-                // Date range filter
-                if (dateRange.from || dateRange.to) {
-                    const recDate = getDateOnly(rec.date);
-                    if (!recDate) return false;
-
-                    if (dateRange.from) {
-                        const fromDate = new Date(dateRange.from);
-                        if (recDate < fromDate) return false;
-                    }
-
-                    if (dateRange.to) {
-                        const toDate = new Date(dateRange.to);
-                        toDate.setHours(23, 59, 59, 999);
-                        if (recDate > toDate) return false;
-                    }
-                }
-
-                return true;
-            });
-
-            // Apply sorting
-            if (sortConfig.column) {
-                sortRecommendations();
-            }
-
-            updateStats();
-        }
-
-        function sortRecommendations() {
-            if (!sortConfig.column) return;
-
-            filteredRecommendations.sort((a, b) => {
-                // First, handle null/empty services - always put them at the bottom
-                const aServiceNull = !a.service || a.service === null || a.service === '';
-                const bServiceNull = !b.service || b.service === null || b.service === '';
-                
-                if (aServiceNull && !bServiceNull) return 1;  // a goes to bottom
-                if (!aServiceNull && bServiceNull) return -1; // b goes to bottom
-                if (aServiceNull && bServiceNull) {
-                    // Both are null, continue with normal sorting
-                }
-
-                let aVal = a[sortConfig.column];
-                let bVal = b[sortConfig.column];
-
-                // Handle null values
-                if (aVal === null || aVal === undefined) aVal = '';
-                if (bVal === null || bVal === undefined) bVal = '';
-
-                // Convert to string for comparison
-                aVal = String(aVal).toLowerCase();
-                bVal = String(bVal).toLowerCase();
-
-                // Special handling for dates
-                if (sortConfig.column === 'date') {
-                    const aDate = getDateOnly(a.date);
-                    const bDate = getDateOnly(b.date);
-                    if (aDate && bDate) {
-                        return sortConfig.direction === 'asc' 
-                            ? aDate - bDate 
-                            : bDate - aDate;
-                    }
-                }
-
-                // Regular string comparison
-                let comparison = 0;
-                if (aVal < bVal) comparison = -1;
-                if (aVal > bVal) comparison = 1;
-
-                return sortConfig.direction === 'asc' ? comparison : -comparison;
-            });
-        }
-
-        function renderTable() {
-            const tbody = document.getElementById('table-body');
-            tbody.innerHTML = '';
-
-            if (filteredRecommendations.length === 0) {
-                document.getElementById('no-results').style.display = 'block';
-                document.getElementById('table-wrapper').style.display = 'none';
+        function validateAndEnableUpload() {
+            if (!selectedFile) {
+                uploadBtn.disabled = true;
                 return;
             }
 
-            document.getElementById('no-results').style.display = 'none';
-            document.getElementById('table-wrapper').style.display = 'block';
-
-            filteredRecommendations.forEach(rec => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = createRowHTML(rec);
-                tbody.appendChild(tr);
-            });
-            
-            // Add column hover effect
-            setupColumnHover();
-        }
-        
-        function setupColumnHover() {
-            const table = document.getElementById('recommendations-table');
-            if (!table) return;
-            
-            const cells = table.querySelectorAll('tbody td');
-            const headers = table.querySelectorAll('thead th');
-            
-            cells.forEach(cell => {
-                cell.addEventListener('mouseenter', function() {
-                    const columnIndex = Array.from(this.parentElement.children).indexOf(this);
-                    // Highlight all cells in this column
-                    table.querySelectorAll(`tbody tr td:nth-child(${columnIndex + 1})`).forEach(td => {
-                        td.classList.add('column-hover');
-                    });
-                    // Highlight header
-                    if (headers[columnIndex]) {
-                        headers[columnIndex].classList.add('column-hover');
-                    }
-                });
-                
-                cell.addEventListener('mouseleave', function() {
-                    const columnIndex = Array.from(this.parentElement.children).indexOf(this);
-                    // Remove highlight from all cells in this column
-                    table.querySelectorAll(`tbody tr td:nth-child(${columnIndex + 1})`).forEach(td => {
-                        td.classList.remove('column-hover');
-                    });
-                    // Remove highlight from header
-                    if (headers[columnIndex]) {
-                        headers[columnIndex].classList.remove('column-hover');
-                    }
-                });
-            });
-        }
-
-        function createRowHTML(rec, skipService = false) {
-            const name = rec.name || 'No Name';
-            const phone = formatPhone(rec.phone);
-            const phoneLink = getTelLink(rec.phone);
-            const service = rec.service || '';
-            const date = formatDate(rec.date);
-            const recommender = rec.recommender || '';
-            const context = truncateText(rec.context, 60);
-
-            let html = '';
-            
-            if (!skipService) {
-                html += `<td class="service-col">${service ? `<span class="service-badge">${escapeHtml(service)}</span>` : ''}</td>`;
+            // Validate file type
+            if (!selectedFile.name.endsWith('.zip')) {
+                showStatus('Only ZIP files are allowed', 'error');
+                uploadBtn.disabled = true;
+                return;
             }
+
+            // Validate file size (5MB)
+            const maxSize = 5 * 1024 * 1024;
+            if (selectedFile.size > maxSize) {
+                showStatus(`File size exceeds limit (5MB). File is ${(selectedFile.size / 1024 / 1024).toFixed(2)}MB`, 'error');
+                uploadBtn.disabled = true;
+                return;
+            }
+
+            uploadBtn.disabled = false;
+            showStatus(`File selected: ${selectedFile.name} (${(selectedFile.size / 1024 / 1024).toFixed(2)}MB)`, 'info');
+        }
+
+        // Upload button click
+        uploadBtn.addEventListener('click', async () => {
+            if (!selectedFile) return;
+
+            uploadBtn.disabled = true;
+            cancelBtn.style.display = 'inline-block';
+            progressContainer.style.display = 'block';
+            progressFill.style.width = '0%';
+            progressFill.textContent = '0%';
+            progressText.textContent = 'Uploading file...';
+            sessionInfo.style.display = 'none';
+            hideStatus();
             
-            html += `
-                <td><strong>${escapeHtml(name)}</strong></td>
-                <td><a href="${phoneLink}" class="phone-link">${phone}</a></td>
-                <td class="date">${date}</td>
-                <td class="recommender-col">${escapeHtml(recommender)}</td>
-                <td class="context" title="${escapeHtml(rec.context || '')}">${escapeHtml(context)}</td>
-            `;
+            // Hide upload area during upload
+            uploadArea.style.display = 'none';
             
-            return html;
-        }
+            // Start timer
+            resetTimer();
+            startTimer();
 
-        function applyFiltersAndRender() {
-            filterRecommendations();
-            renderTable();
-        }
-
-        function updateSortIndicator() {
-            document.querySelectorAll('th.sortable').forEach(th => {
-                th.classList.remove('sort-asc', 'sort-desc');
-                if (th.dataset.column === sortConfig.column) {
-                    th.classList.add(sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc');
-                }
-            });
-        }
-
-        // Event listeners
-        document.getElementById('search-input').addEventListener('input', function() {
-            clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(() => {
-                applyFiltersAndRender();
-            }, 300);
-        });
-
-
-        document.querySelectorAll('th.sortable').forEach(th => {
-            th.addEventListener('click', function(e) {
-                const column = this.dataset.column;
-                if (sortConfig.column === column) {
-                    sortConfig.direction = sortConfig.direction === 'asc' ? 'desc' : 'asc';
+            try {
+                // Get preview mode state from checkbox
+                const previewMode = previewModeCheckbox.checked;
+                const useOpenAI = useOpenAICheckbox.checked;
+                
+                // Upload with progress tracking and abort capability
+                const upload = uploadFile(selectedFile, (percent) => {
+                    // Update progress bar in real-time
+                    progressFill.style.width = `${percent}%`;
+                    progressFill.textContent = `${percent}%`;
+                    if (percent < 100) {
+                        progressText.textContent = `Uploading file... ${percent}%`;
+                    }
+                }, previewMode, useOpenAI);
+                
+                // Store abort function
+                uploadAbort = upload.abort;
+                
+                const result = await upload.promise;
+                
+                // Clear abort function on success
+                uploadAbort = null;
+                
+                // Show success
+                stopTimer();
+                progressFill.style.width = '100%';
+                progressFill.textContent = '100%';
+                progressText.textContent = 'Upload complete!';
+                cancelBtn.style.display = 'none';
+                
+                // Show session info briefly, then redirect
+                sessionIdEl.textContent = result.session_id;
+                resultsLink.href = `results.html?session_id=${result.session_id}`;
+                sessionInfo.style.display = 'block';
+                
+                showStatus('File uploaded successfully! Redirecting to results...', 'success');
+                
+                // Automatically redirect to results page after a short delay
+                setTimeout(() => {
+                    window.location.href = `results.html?session_id=${result.session_id}`;
+                }, 1500); // 1.5 second delay to show success message
+                
+            } catch (error) {
+                stopTimer();
+                // Don't show error if it was aborted by user
+                if (error.message === 'Upload was aborted') {
+                    resetUploadState();
+                    showStatus('Upload cancelled. You can select a new file to upload.', 'info');
                 } else {
-                    sortConfig.column = column;
-                    sortConfig.direction = 'asc';
+                    progressContainer.style.display = 'none';
+                    cancelBtn.style.display = 'none';
+                    uploadArea.style.display = 'block'; // Show upload area again on error
+                    // Show error message, preserving line breaks
+                    const errorMsg = error.message.replace(/\n/g, '<br>');
+                    statusMessage.innerHTML = `Error: ${errorMsg}`;
+                    statusMessage.className = 'status-message error';
+                    statusMessage.style.display = 'block';
+                    uploadBtn.disabled = false;
                 }
-                updateSortIndicator();
-                sortRecommendations();
-                renderTable();
-            });
+                uploadAbort = null;
+            }
         });
 
-        document.querySelectorAll('[data-quick]').forEach(btn => {
-            btn.addEventListener('click', function() {
-                document.querySelectorAll('[data-quick]').forEach(b => b.classList.remove('active'));
-                this.classList.add('active');
-
-                const quick = this.dataset.quick;
-                const today = new Date();
-
-                if (quick === 'month') {
-                    const monthAgo = new Date(today);
-                    monthAgo.setMonth(monthAgo.getMonth() - 1);
-                    dateRange.from = monthAgo.toISOString().split('T')[0];
-                    dateRange.to = today.toISOString().split('T')[0];
-                } else if (quick === '6months') {
-                    const sixMonthsAgo = new Date(today);
-                    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-                    dateRange.from = sixMonthsAgo.toISOString().split('T')[0];
-                    dateRange.to = today.toISOString().split('T')[0];
-                } else if (quick === 'year') {
-                    const yearAgo = new Date(today);
-                    yearAgo.setFullYear(yearAgo.getFullYear() - 1);
-                    dateRange.from = yearAgo.toISOString().split('T')[0];
-                    dateRange.to = today.toISOString().split('T')[0];
-                } else {
-                    dateRange.from = null;
-                    dateRange.to = null;
-                }
-
-                applyFiltersAndRender();
-            });
+        // Cancel button click
+        cancelBtn.addEventListener('click', () => {
+            if (uploadAbort) {
+                uploadAbort();
+                uploadAbort = null;
+            }
         });
 
-        // Initialize default date filter to "Last Month"
-        function initializeDefaultFilter() {
-            const today = new Date();
-            const monthAgo = new Date(today);
-            monthAgo.setMonth(monthAgo.getMonth() - 1);
-            dateRange.from = monthAgo.toISOString().split('T')[0];
-            dateRange.to = today.toISOString().split('T')[0];
+        function resetUploadState() {
+            stopTimer();
+            resetTimer();
+            uploadBtn.disabled = false;
+            cancelBtn.style.display = 'none';
+            progressContainer.style.display = 'none';
+            progressFill.style.width = '0%';
+            progressFill.textContent = '0%';
+            progressText.textContent = '';
+            uploadArea.style.display = 'block'; // Show upload area again
+            uploadAbort = null;
         }
 
-        // Load preferences and data on page load
-        loadPreferences();
-        initializeDefaultFilter();
-        loadRecommendations();
+        function showStatus(message, type) {
+            statusMessage.textContent = message;
+            statusMessage.className = `status-message ${type}`;
+            statusMessage.style.display = 'block';
+        }
+
+        function hideStatus() {
+            statusMessage.style.display = 'none';
+        }
+
+        function formatTime(ms) {
+            const totalSeconds = Math.floor(ms / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+
+        function startTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+            timerStartTime = Date.now();
+            const timerElement = document.getElementById('progressTimer');
+            
+            timerInterval = setInterval(() => {
+                if (timerStartTime) {
+                    const elapsed = Date.now() - timerStartTime;
+                    timerElement.textContent = formatTime(elapsed);
+                }
+            }, 1000);
+        }
+
+        function stopTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+            timerStartTime = null;
+        }
+
+        function resetTimer() {
+            stopTimer();
+            document.getElementById('progressTimer').textContent = '00:00';
+        }
     </script>
 </body>
 </html>
