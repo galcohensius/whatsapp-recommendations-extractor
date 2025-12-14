@@ -54,4 +54,4 @@ web/openai_response.json
 api_key.txt
 *.key
 *.secret
-
+examples/
