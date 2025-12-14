@@ -152,17 +152,26 @@ function uploadFile(file, onProgress = null, previewMode = true, useOpenAI = tru
  * @returns {Promise<{status: string, error_message?: string}>}
  */
 async function getStatus(sessionId) {
-    const response = await fetch(`${API_BASE_URL}/api/status/${sessionId}`);
-    
-    if (!response.ok) {
-        if (response.status === 404) {
-            throw new Error('Session not found');
+    try {
+        console.log(`[API] Fetching status for session: ${sessionId}`);
+        const response = await fetch(`${API_BASE_URL}/api/status/${sessionId}`);
+        console.log(`[API] Status response: ${response.status} ${response.statusText}`);
+        
+        if (!response.ok) {
+            if (response.status === 404) {
+                throw new Error('Session not found');
+            }
+            const error = await response.json().catch(() => ({ detail: 'Status check failed' }));
+            throw new Error(error.detail || `Status check failed with status ${response.status}`);
         }
-        const error = await response.json().catch(() => ({ detail: 'Status check failed' }));
-        throw new Error(error.detail || `Status check failed with status ${response.status}`);
+        
+        const data = await response.json();
+        console.log(`[API] Status data:`, data);
+        return data;
+    } catch (error) {
+        console.error(`[API] Error getting status:`, error);
+        throw error;
     }
-    
-    return await response.json();
 }
 
 /**
@@ -201,6 +210,9 @@ async function getResults(sessionId) {
  */
 async function pollStatus(sessionId, onStatusUpdate = null, maxPollingTime = 2 * 60 * 60 * 1000, pollInterval = 2000) {
     const startTime = Date.now();
+    let pollCount = 0;
+    
+    console.log(`[API] Starting to poll session ${sessionId}, maxTime: ${maxPollingTime}ms, interval: ${pollInterval}ms`);
     
     while (true) {
         const elapsed = Date.now() - startTime;
@@ -210,6 +222,8 @@ async function pollStatus(sessionId, onStatusUpdate = null, maxPollingTime = 2 *
         }
         
         try {
+            pollCount++;
+            console.log(`[API] Poll #${pollCount} (elapsed: ${Math.floor(elapsed/1000)}s)`);
             const status = await getStatus(sessionId);
             
             if (onStatusUpdate) {
@@ -217,6 +231,7 @@ async function pollStatus(sessionId, onStatusUpdate = null, maxPollingTime = 2 *
             }
             
             if (status.status === 'completed') {
+                console.log(`[API] Polling complete after ${pollCount} polls`);
                 return status;
             }
             
@@ -228,11 +243,13 @@ async function pollStatus(sessionId, onStatusUpdate = null, maxPollingTime = 2 *
             await new Promise(resolve => setTimeout(resolve, pollInterval));
             
         } catch (error) {
+            console.error(`[API] Poll #${pollCount} error:`, error);
             // If it's a status error (not found, etc.), rethrow
             if (error.message.includes('not found') || error.message.includes('expired')) {
                 throw error;
             }
             // Otherwise, continue polling
+            console.log(`[API] Continuing to poll despite error...`);
             await new Promise(resolve => setTimeout(resolve, pollInterval));
         }
     }

@@ -708,7 +708,7 @@
         </div>
     </div>
 
-    <script src="api.js"></script>
+    <script src="js/api.js"></script>
     <script>
         // Update API base URL if needed
         // API_BASE_URL = 'https://your-backend-url.onrender.com';
@@ -925,7 +925,9 @@
                 document.getElementById('total-count').textContent = 'Checking status...';
                 showProgress(10, 'Checking processing status...');
                 
+                console.log('Fetching status for session:', sessionId);
                 const status = await getStatus(sessionId);
+                console.log('Status received:', status);
                 
                 if (status.status === 'pending' || status.status === 'processing') {
                     // Show progress bar and poll for completion
@@ -939,10 +941,13 @@
                     showProgress(20, initialMessage);
                     
                     try {
+                        console.log('Starting to poll for status updates...');
                         await pollStatus(sessionId, (statusUpdate) => {
                             pollCount++;
                             const elapsed = Date.now() - startTime;
                             const progress = Math.min(20 + Math.floor((elapsed / maxTime) * 70), 90);
+                            
+                            console.log(`Poll #${pollCount}: Status=${statusUpdate.status}, Progress=${progress}%, Message=${statusUpdate.progress_message || 'N/A'}`);
                             
                             // Use progress_message if available, otherwise fall back to default messages
                             let statusText = statusUpdate.progress_message || 'Processing files...';
@@ -1018,14 +1023,19 @@
                 
             } catch (error) {
                 console.error('Error loading recommendations:', error);
+                console.error('Error details:', {
+                    message: error.message,
+                    stack: error.stack,
+                    sessionId: sessionId
+                });
                 hideProgress();
                 
                 if (error.message.includes('expired')) {
                     showError('Results have expired. Please upload the files again.');
                 } else if (error.message.includes('not found')) {
-                    showError('Session not found. Please check the session ID.');
+                    showError('Session not found. Please check the session ID. Check browser console for details.');
                 } else {
-                    showError(`Error loading data: ${error.message}`);
+                    showError(`Error loading data: ${error.message}. Check browser console for details.`);
                 }
             }
         }

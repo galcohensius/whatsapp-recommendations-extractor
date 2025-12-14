@@ -88,10 +88,41 @@
             border-radius: 5px;
         }
 
-        .instructions h3 {
+        .instructions-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .instructions-header h3 {
             color: #667eea;
-            margin-bottom: 15px;
+            margin: 0;
             font-size: 1.1em;
+        }
+
+        .toggle-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 5px 12px;
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .toggle-btn:hover {
+            background: #5568d3;
+        }
+
+        .instructions-content {
+            margin-top: 15px;
+            display: none;
+        }
+
+        .instructions-content.expanded {
+            display: block;
         }
 
         .instructions ol {
@@ -283,9 +314,13 @@
                 margin-bottom: 20px;
             }
 
-            .instructions h3 {
+            .instructions-header h3 {
                 font-size: 1em;
-                margin-bottom: 10px;
+            }
+
+            .toggle-btn {
+                padding: 4px 10px;
+                font-size: 0.85em;
             }
 
             .instructions ol {
@@ -352,6 +387,15 @@
                 padding: 12px;
             }
 
+            .instructions-header h3 {
+                font-size: 0.95em;
+            }
+
+            .toggle-btn {
+                padding: 4px 8px;
+                font-size: 0.8em;
+            }
+
             .instructions ol {
                 font-size: 0.9em;
             }
@@ -372,17 +416,22 @@
 
         <div class="content">
             <div class="instructions">
-                <h3>📱 How to Export Your WhatsApp Chat:</h3>
-                <ol>
-                    <li>Open WhatsApp on your phone</li>
-                    <li>Go to <strong>Settings</strong> → <strong>Chats</strong> → <strong>Chat history</strong> → <strong>Export chat</strong></li>
-                    <li>Choose the chat you want to export</li>
-                    <li>Save the file as <strong>"Without media"</strong></li>
-                    <li>Drag the ZIP file to the area below</li>
-                </ol>
-                <p style="margin-top:12px; color:#555;">
-                    Sessions and results are stored in Supabase for a limited time (default 7 days). Keep the session link if you want to revisit results before expiry.
-                </p>
+                <div class="instructions-header" id="instructionsHeader">
+                    <h3>📱 How to Export Your WhatsApp Chat:</h3>
+                    <button class="toggle-btn" id="toggleBtn">Show Instructions</button>
+                </div>
+                <div class="instructions-content" id="instructionsContent">
+                    <ol>
+                        <li>Open WhatsApp on your phone</li>
+                        <li>Go to <strong>Settings</strong> → <strong>Chats</strong> → <strong>Chat history</strong> → <strong>Export chat</strong></li>
+                        <li>Choose the chat you want to export</li>
+                        <li>Save the file as <strong>"Without media"</strong></li>
+                        <li>Drag the ZIP file to the area below</li>
+                    </ol>
+                    <p style="margin-top:12px; color:#555;">
+                        Sessions and results are stored in Supabase for a limited time (default 7 days). Keep the session link if you want to revisit results before expiry.
+                    </p>
+                </div>
             </div>
 
             <div class="upload-area" id="uploadArea">
@@ -433,7 +482,7 @@
         </div>
     </div>
 
-    <script src="api.js"></script>
+    <script src="js/api.js"></script>
     <script>
         // Update API base URL if needed (uncomment and set your URL)
         // For local development: API_BASE_URL = 'http://localhost:8000';
@@ -452,11 +501,26 @@
         const sessionInfo = document.getElementById('sessionInfo');
         const sessionIdEl = document.getElementById('sessionId');
         const resultsLink = document.getElementById('resultsLink');
+        const instructionsHeader = document.getElementById('instructionsHeader');
+        const instructionsContent = document.getElementById('instructionsContent');
+        const toggleBtn = document.getElementById('toggleBtn');
 
         let selectedFile = null;
         let uploadAbort = null;
         let timerInterval = null;
         let timerStartTime = null;
+
+        // Toggle instructions
+        instructionsHeader.addEventListener('click', () => {
+            const isExpanded = instructionsContent.classList.contains('expanded');
+            if (isExpanded) {
+                instructionsContent.classList.remove('expanded');
+                toggleBtn.textContent = 'Show Instructions';
+            } else {
+                instructionsContent.classList.add('expanded');
+                toggleBtn.textContent = 'Hide Instructions';
+            }
+        });
 
         // Click to select file
         uploadArea.addEventListener('click', () => {
