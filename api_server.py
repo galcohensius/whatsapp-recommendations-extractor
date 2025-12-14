@@ -2,6 +2,7 @@
 FastAPI backend for WhatsApp recommendations extractor.
 
 Endpoints:
+- GET  /api/ping: health check endpoint to wake up service from cold start
 - POST /api/upload: upload a ZIP, create session, kick off processing
 - GET  /api/status/{session_id}: fetch session status
 - GET  /api/results/{session_id}: fetch processed recommendations
@@ -290,6 +291,12 @@ async def _process_session(session_id: str, file_name: str, preview_mode: bool, 
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
+
+
+@app.get("/api/ping")
+async def ping():
+    """Health check endpoint to wake up the service from cold start."""
+    return {"status": "ok", "message": "Service is awake"}
 
 
 @app.post("/api/upload")

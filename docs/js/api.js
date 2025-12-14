@@ -5,6 +5,26 @@
 // Default API base URL - update this to your backend URL
 let API_BASE_URL = 'https://whatsapp-recommendations-api.onrender.com';
 
+/**
+ * Wake up the service by calling the ping endpoint.
+ * This helps prevent timeouts from cold starts on Render.
+ * @returns {Promise<void>}
+ */
+async function wakeService() {
+    try {
+        console.log('[API] Waking up service...');
+        const response = await fetch(`${API_BASE_URL}/api/ping`);
+        if (response.ok) {
+            console.log('[API] Service is awake');
+        } else {
+            console.warn('[API] Ping returned non-OK status:', response.status);
+        }
+    } catch (error) {
+        console.warn('[API] Ping failed (non-fatal):', error);
+        // Don't throw - this is just a wake-up call
+    }
+}
+
 // Validate API_BASE_URL - ensure it's not localhost (which won't work on mobile)
 (function validateApiUrl() {
     // Check if API_BASE_URL was overridden to localhost
@@ -67,76 +87,85 @@ function uploadFile(file, onProgress = null, previewMode = true, useOpenAI = tru
     const formData = new FormData();
     formData.append('file', file);
     
-    const promise = new Promise((resolve, reject) => {
-        // Track upload progress
-        xhr.upload.addEventListener('progress', (e) => {
-            if (e.lengthComputable && onProgress) {
-                const percentComplete = Math.round((e.loaded / e.total) * 100);
-                onProgress(percentComplete);
-            }
-        });
+    // Create a promise that first wakes the service, then performs the upload
+    const promise = (async () => {
+        // Wake up the service first to prevent cold start timeouts
+        await wakeService();
+        // Wait a short time to ensure service is ready
+        await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
         
-        // Handle completion
-        xhr.addEventListener('load', () => {
-            if (xhr.status >= 200 && xhr.status < 300) {
-                try {
-                    const response = JSON.parse(xhr.responseText);
-                    resolve(response);
-                } catch (e) {
-                    reject(new Error('Invalid response from server'));
+        // Now perform the actual upload
+        return new Promise((resolve, reject) => {
+            // Track upload progress
+            xhr.upload.addEventListener('progress', (e) => {
+                if (e.lengthComputable && onProgress) {
+                    const percentComplete = Math.round((e.loaded / e.total) * 100);
+                    onProgress(percentComplete);
                 }
-            } else if (xhr.status === 502) {
-                reject(new Error('Backend service is not available (502 Bad Gateway). The service at ' + API_BASE_URL + ' may not be deployed or is currently down. Please check the Render dashboard or deploy the backend service.'));
-            } else {
-                try {
-                    const error = JSON.parse(xhr.responseText);
-                    reject(new Error(error.detail || `Upload failed with status ${xhr.status}`));
-                } catch (e) {
-                    reject(new Error(`Upload failed with status ${xhr.status}`));
+            });
+            
+            // Handle completion
+            xhr.addEventListener('load', () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        resolve(response);
+                    } catch (e) {
+                        reject(new Error('Invalid response from server'));
+                    }
+                } else if (xhr.status === 502) {
+                    reject(new Error('Backend service is not available (502 Bad Gateway). The service at ' + API_BASE_URL + ' may not be deployed or is currently down. Please check the Render dashboard or deploy the backend service.'));
+                } else {
+                    try {
+                        const error = JSON.parse(xhr.responseText);
+                        reject(new Error(error.detail || `Upload failed with status ${xhr.status}`));
+                    } catch (e) {
+                        reject(new Error(`Upload failed with status ${xhr.status}`));
+                    }
                 }
+            });
+            
+            // Handle errors
+            xhr.addEventListener('error', () => {
+                // Provide more specific error message
+                let errorMsg = 'Network error during upload. ';
+                if (xhr.status === 0) {
+                    errorMsg += 'Unable to connect to the server. Please check:\n';
+                    errorMsg += '1. The backend service is running and deployed\n';
+                    errorMsg += '2. The API URL is correct (currently: ' + API_BASE_URL + ')\n';
+                    errorMsg += '3. For local development, update API_BASE_URL in api.js to "http://localhost:8000"\n';
+                    errorMsg += '4. There are no CORS or firewall issues';
+                } else if (xhr.status === 502) {
+                    errorMsg += 'Backend service is not available (502 Bad Gateway). ';
+                    errorMsg += 'The service at ' + API_BASE_URL + ' may not be deployed or is currently down. ';
+                    errorMsg += 'Please check the Render dashboard or deploy the backend service.';
+                } else {
+                    errorMsg += 'HTTP Status: ' + xhr.status;
+                }
+                reject(new Error(errorMsg));
+            });
+            
+            // Handle timeout
+            xhr.addEventListener('timeout', () => {
+                reject(new Error('Upload timeout. The server took too long to respond.'));
+            });
+            
+            xhr.addEventListener('abort', () => {
+                reject(new Error('Upload was aborted'));
+            });
+            
+            // Start upload
+            xhr.open('POST', uploadUrl);
+            xhr.timeout = 120000; // 120 second timeout
+            
+            // Log the actual URL being used (for debugging)
+            if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                console.log('[Upload] Uploading to:', uploadUrl);
             }
+            
+            xhr.send(formData);
         });
-        
-        // Handle errors
-        xhr.addEventListener('error', () => {
-            // Provide more specific error message
-            let errorMsg = 'Network error during upload. ';
-            if (xhr.status === 0) {
-                errorMsg += 'Unable to connect to the server. Please check:\n';
-                errorMsg += '1. The backend service is running and deployed\n';
-                errorMsg += '2. The API URL is correct (currently: ' + API_BASE_URL + ')\n';
-                errorMsg += '3. For local development, update API_BASE_URL in api.js to "http://localhost:8000"\n';
-                errorMsg += '4. There are no CORS or firewall issues';
-            } else if (xhr.status === 502) {
-                errorMsg += 'Backend service is not available (502 Bad Gateway). ';
-                errorMsg += 'The service at ' + API_BASE_URL + ' may not be deployed or is currently down. ';
-                errorMsg += 'Please check the Render dashboard or deploy the backend service.';
-            } else {
-                errorMsg += 'HTTP Status: ' + xhr.status;
-            }
-            reject(new Error(errorMsg));
-        });
-        
-        // Handle timeout
-        xhr.addEventListener('timeout', () => {
-            reject(new Error('Upload timeout. The server took too long to respond.'));
-        });
-        
-        xhr.addEventListener('abort', () => {
-            reject(new Error('Upload was aborted'));
-        });
-        
-        // Start upload
-        xhr.open('POST', uploadUrl);
-        xhr.timeout = 60000; // 60 second timeout
-        
-        // Log the actual URL being used (for debugging)
-        if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-            console.log('[Upload] Uploading to:', uploadUrl);
-        }
-        
-        xhr.send(formData);
-    });
+    })();
     
     return {
         promise: promise,
